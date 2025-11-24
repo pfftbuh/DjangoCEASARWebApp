@@ -82,51 +82,12 @@
                                 <option value="" selected>Or select a question from bank</option>
                                 <div id="question_options"></div>
                             </select>
-                            <script>
-                                const questionInput = document.getElementById('questions');
-                                const questionSelect = document.getElementById('questions_list');
-                                const questionbankSelect = document.getElementById('question_bank');
-
-                                questionbankSelect.addEventListener('change', function() {
-                                    // Clear previous options except the first
-                                    while (questionSelect.options.length > 1) {
-                                        questionSelect.remove(1);
-                                    }
-
-                                    // Find the selected bank's questions from a JS object (populated from Django context)
-                                    const selectedBankId = this.value;
-                                    const questionBanks = {{ question_bank|safe }};
-                                    const selectedBank = questionBanks.find(bank => bank.id == selectedBankId);
-
-                                    if (selectedBank && selectedBank.questions) {
-                                        selectedBank.questions.forEach(function(question) {
-                                            const option = document.createElement('option');
-                                            option.value = question.question;
-                                            option.textContent = question.question;
-                                            questionSelect.appendChild(option);
-                                        });
-                                    }
-                                });
-
-                                questionInput.addEventListener('input', function() {
-                                    if (this.value.trim() !== '') {
-                                        questionSelect.readOnly = true;
-                                    } else {
-                                        questionSelect.readOnly = false;
-                                    }
-                                });
-
-                                questionSelect.addEventListener('change', function() {
-                                    if (this.value !== '') {
-                                        questionInput.readOnly = true;
-                                        questionInput.value = this.value;
-                                    } else {
-                                        questionInput.readOnly = false;
-                                        questionInput.value = '';
-                                    }
-                                });
-                            </script>
+                           
                         </div>
+                    </div>
+                    <div class="form-group mt-3">
+                        <label for="question_bank_answer"><strong>Question Bank Answer</strong></label>
+                        <input type="text" class="form-control" id="question_bank_answer" name="question_bank_answer" readonly placeholder="Select a question to view its answer">
                     </div>
                     <div class="form-group mt-3">
                         <label for="question_type"><strong>Question Type</strong></label>

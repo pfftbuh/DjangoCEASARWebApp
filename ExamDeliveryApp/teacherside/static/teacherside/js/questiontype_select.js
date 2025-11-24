@@ -1,8 +1,113 @@
 document.addEventListener('DOMContentLoaded', function() {
+
+    // Function to get CSRF token from cookie (Django sets this automatically)
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+
+    const csrftoken = getCookie('csrftoken');
+
     const choicesContainer = document.getElementById('choices_container');
     const answerContainer = document.getElementById('answer_container');
     const questionType = document.getElementById('question_type');
     const answerInput = document.getElementById('correct_answer');
+
+    const questionInput = document.getElementById('questions');
+    const questionSelect = document.getElementById('questions_list');
+    const questionbankSelect = document.getElementById('question_bank');
+
+    // Access the question bank data passed from Django
+    let questionBanks = [];
+    
+    fetch('/teacher/api/question-banks/', {
+        method: 'GET',
+        headers: {
+            'X-CSRFToken': csrftoken,
+            'Content-Type': 'application/json'
+        },
+        credentials: 'same-origin'
+    })
+    .then(response => response.json())
+    .then(data => {
+        questionBanks = data.question_banks;
+        console.log('Question banks loaded:', questionBanks);
+    })
+    .catch(error => {
+        console.error('Error fetching question banks:', error);
+    });
+
+    const answerField = document.getElementById('question_bank_answer');
+    // Assuming you have a JS object mapping question IDs to answers
+    // Example: window.questionBankAnswers = { "1": "Answer 1", "2": "Answer 2", ... }
+    
+    questionbankSelect.addEventListener('change', function() {
+        // Clear previous options except the first
+        while (questionSelect.options.length > 1) {
+            questionSelect.remove(1);
+        }
+
+        // Find the selected bank's questions
+        const selectedBankId = this.value;
+        const selectedBank = questionBanks.find(bank => bank.id == selectedBankId);
+
+        if (selectedBank && selectedBank.questions) {
+            selectedBank.questions.forEach(function(question) {
+                const option = document.createElement('option');
+                option.value = question.question;
+                option.textContent = question.question;
+                questionSelect.appendChild(option);
+            });
+        }
+    });
+
+    
+    
+    
+    questionSelect.addEventListener('change', function() {
+        const selectedBankId = questionbankSelect.value;
+        const selectedBank = questionBanks.find(bank => bank.id == selectedBankId);
+        let selectedAnswer = '';
+        
+
+        if (this.value !== '') {
+            questionInput.readOnly = true;
+            questionInput.value = this.value;
+
+            if (selectedBank && selectedBank.questions) {
+            const selectedQuestion = selectedBank.questions.find(q => q.question === this.value);
+            if (selectedQuestion && selectedQuestion.answer !== undefined) {
+                selectedAnswer = selectedQuestion.answer;
+            }
+            }
+
+            answerField.value = selectedAnswer;
+        }   else {
+            questionInput.readOnly = false;
+            questionInput.value = '';
+        }
+    });
+
+    
+    
+    
+    questionInput.addEventListener('input', function() {
+        if (this.value.trim() !== '') {
+            questionSelect.disabled = true;
+        } else {
+            questionSelect.disabled = false;
+        }
+    });
 
     questionType.addEventListener('change', function() {
         choicesContainer.innerHTML = '';
@@ -166,3 +271,5 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 });
+
+

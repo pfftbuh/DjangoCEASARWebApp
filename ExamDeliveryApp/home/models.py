@@ -19,3 +19,22 @@ class Profile(models.Model):
 
     def __str__(self):
         return self.username
+    
+    class Meta:
+        db_table = "Profiles"
+        verbose_name = "Profile"
+        verbose_name_plural = "Profiles"
+    
+
+class StudentProfile(models.Model):
+    profile = models.OneToOneField(Profile, on_delete=models.CASCADE)
+    class_designation = models.CharField(max_length=10, default="0701")
+
+    def __str__(self):
+        return f"{self.profile.username} - {self.class_designation}"
+    
+    class Meta:
+        db_table = "Student Profiles"
+        verbose_name = "Student Profile"
+        verbose_name_plural = "Student Profiles"
+    

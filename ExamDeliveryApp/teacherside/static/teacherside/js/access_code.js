@@ -2,6 +2,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const accessCodeCheckbox = document.getElementById('access_code_required');
     const accessCodeInput = document.getElementById('access_code');
     
+
     // Handle checkbox change
     accessCodeCheckbox.addEventListener('change', function() {
         accessCodeInput.disabled = !this.checked;

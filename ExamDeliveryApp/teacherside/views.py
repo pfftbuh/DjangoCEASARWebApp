@@ -1,9 +1,15 @@
 import json
 from datetime import datetime
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from django.shortcuts import render
 from home.decorators import login_required_role
 from home.models import Profile
+
+class_roster = {
+    '0701': ['Alice', 'Bob', 'Charlie'],
+    '1002': ['David', 'Eve', 'Frank'],
+    '0703': ['Grace', 'Heidi', 'Ivan']
+}
 
 exams = [
     {
@@ -236,12 +242,20 @@ def update_exam_details(exam_id, exam_duration, exam_instructions, access_code_r
 
 
 
+@login_required_role(allowed_roles=['Teacher', 'Admin'])
+def get_question_banks_api(request):
+    """API endpoint to return question banks as JSON"""
+    return JsonResponse({'question_banks': questionbanks}, safe=False)
+
 
 
 # Create your views here.
 @login_required_role(allowed_roles=['Teacher', 'Admin'])
 def teacher_dashboard(request):
-    return render(request, 'teacherside/dashboard.html', context={'exams': exams})
+    # Get the user's profile to retrieve first and last name
+    profile = Profile.objects.filter(user=request.user).first()
+    teacher_name = f"{profile.first_name} {profile.last_name}" if profile else request.user.username
+    return render(request, 'teacherside/dashboard.html', context={'exams': exams, 'teacher_name': teacher_name})
 
 
 
@@ -383,6 +397,7 @@ def teacher_create_exam(request):
         exam_instructions = request.POST.get('instructions')
         access_code_required = request.POST.get('access_code_required') == 'on'
         exam_attempts = int(request.POST.get('num_attempts', 1))
+        selected_class_id = request.POST.get('class_list')
         # Save the new exam (this is just a placeholder, implement actual saving logic)
         new_exam = {
             'id': len(exams) + 1,
@@ -399,7 +414,7 @@ def teacher_create_exam(request):
         exams.append(new_exam)
         return render(request, 'teacherside/create_exam_success.html', {'exam': new_exam})
     
-    return render(request, 'teacherside/create_exam.html')
+    return render(request, 'teacherside/create_exam.html', {'classes': class_roster})
 
 
 

@@ -7,7 +7,7 @@
 {% block header %}{{ exam.title }}{% endblock %}
 
 {% block content %}
-<div class="row">
+<div class="row"  data-exam-id="{{ exam.id }}">
     <div class="col-md-10 offset-md-1">
         <div class="alert alert-info">
             <strong>Status:</strong> <span id="status" style="color: darkblue;">Tab is focused</span>
@@ -84,7 +84,6 @@
 </style>
 
 <script>
-    const CSRF_TOKEN = '{{ csrf_token }}';
     const EXAM_ID = {{ exam.id|default:"null" }};
 </script>
 <script src="{% static 'teacherside/js/test_exam.js' %}"></script>

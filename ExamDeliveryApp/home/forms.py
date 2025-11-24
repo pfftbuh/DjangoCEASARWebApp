@@ -15,6 +15,20 @@ class SignUpForm(UserCreationForm):
     username = forms.CharField(max_length=70, required=True)
     role = forms.ChoiceField(
         choices=[('Teacher', 'Teacher'), ('Student', 'Student')])
+    
+    class_designation = forms.CharField(
+        max_length=10, 
+        required=False, 
+        widget=forms.TextInput(attrs={'placeholder': 'Class Designation'})
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.data.get('role') != 'Student':
+            self.fields['class_designation'].widget = forms.HiddenInput()
+            self.fields['class_designation'].required = False
+        else:
+            self.fields['class_designation'].required = True
 
     class Meta:
         model = User
@@ -38,6 +52,17 @@ class SignUpForm(UserCreationForm):
                 last_name=self.cleaned_data['last_name'],
                 role=self.cleaned_data['role']
             )
+
+            if self.cleaned_data['role'] == 'Student':
+                from home.models import StudentProfile
+                StudentProfile.objects.create(
+                    profile=user.profile,
+                    class_designation=self.cleaned_data['class_designation']
+                )
+            elif self.cleaned_data['role'] == 'Teacher':
+                pass  # Implement TeacherProfile creation if needed
+                
+
         return user
     
 

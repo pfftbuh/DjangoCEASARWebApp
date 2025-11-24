@@ -4,7 +4,26 @@ document.addEventListener("DOMContentLoaded", function() {let eventLog = [];
     const examForm = document.getElementById("exam-form");
     const warningOverlay = document.getElementById("warning-overlay");
     const mainContent = document.querySelector('.row');
+    const examId = document.querySelector('.row').dataset.examId;
+
     let violationCount = 0;
+
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+
+    const csrftoken = getCookie('csrftoken');
 
     function blockPage(violationType) {
         violationCount++;
@@ -36,7 +55,7 @@ document.addEventListener("DOMContentLoaded", function() {let eventLog = [];
             method: "POST",
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded',
-                'X-CSRFToken': '{{ csrf_token }}'
+                'X-CSRFToken': csrftoken
             },
             body: `event_log=${encodeURIComponent(JSON.stringify(eventLog))}&violation=true`
         }).then(response => {

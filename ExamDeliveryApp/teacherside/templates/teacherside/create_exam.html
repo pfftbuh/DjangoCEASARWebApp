@@ -40,7 +40,24 @@
                             <label for="num_attempts"><strong>Number of Attempts</strong></label>
                             <input type="number" class="form-control" id="num_attempts" name="num_attempts" min="1" value="1" required>
                         </div>
-
+                        <div class="form-group mt-3">
+                            <label for="class_list"><strong>Assign to Class</strong></label>
+                            <select class="form-control" id="class_list" name="class_list">
+                                <option value="" disabled selected>Select a class</option>
+                                {% for class in classes %}
+                                    <option value="{{ class }}">{{ class }}</option>
+                                {% endfor %}
+                            </select>
+                            <button type="button" class="btn btn-sm btn-success mt-2" id="add_class_btn">Add Class</button>
+                        </div>
+                        <div class="form-group mt-3">
+                            <label for="selected_classes"><strong>Selected Classes</strong></label>
+                            <ul id="selected_classes_list" class="list-group mb-2"></ul>
+                            <input type="hidden" id="selected_classes" name="selected_classes" value="">
+                        </div>
+                        <script>
+                            
+                        </script>
                         <div class="form-group mt-3">
                             <label>
                                 <input type="checkbox" id="access_code_required" name="access_code_required" style="transform: scale(1.5); margin-left: 6px; margin-right: 10px;">
@@ -62,5 +79,6 @@
     </div>
 </div>
 <script src="{% static 'teacherside/js/access_code.js' %}"></script>
+<script src="{% static 'teacherside/js/class_designation.js' %}"></script>
 
 {% endblock %}

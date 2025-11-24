@@ -1,0 +1,24 @@
+{% extends "home/base.html" %}
+{% block content %}
+<div class="container mt-5" style="max-width: 400px;">
+    <h2 class="mb-4 text-center">Student Login</h2>
+    <form method="post" action="/student_login">
+        {% csrf_token %}
+        <div class="mb-3">
+            <label for="username" class="form-label">Username</label>
+            <input type="text" class="form-control" id="username" name="username" required autofocus>
+        </div>
+        <div class="mb-3">
+            <label for="password" class="form-label">Password</label>
+            <input type="password" class="form-control" id="password" name="password" required>
+        </div>
+        {% if form.errors %}
+            <div class="alert alert-danger">
+                Invalid username or password.
+            </div>
+        {% endif %}
+        <button type="submit" class="btn btn-primary w-100 mb-2">Login</button>
+        <a href="/site_signup" class="btn btn-secondary w-100">Sign Up</a>
+    </form>
+</div>
+{% endblock %}

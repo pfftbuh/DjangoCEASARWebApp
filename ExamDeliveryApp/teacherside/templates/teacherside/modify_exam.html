@@ -1,0 +1,211 @@
+{% extends 'teacherside/base.html' %}
+
+{% load static %}
+
+{% block title %}Create Exam - MakiTEST{% endblock %}
+
+{% block header %}Create New Exam{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8 offset-md-2">
+        <form method="post" action="{% url 'teacher-modify-exam-details' exam.id %}">
+            {% csrf_token %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h3>Exam Details</h3>
+                </div>
+                <div class="card-body">
+                    <div class="form-group mt-3">
+                        <label for="exam_name"><strong>Exam Name</strong></label>
+                        <input type="text" class="form-control" id="exam_name" name="exam_name" 
+                               value="{{ exam.title }}" required>
+                    </div>
+                    <div class="form-group mt-3">
+                        <label for="duration"><strong>Duration (minutes)</strong></label>
+                        <input type="number" class="form-control" id="duration" name="duration" min="15"
+                               value="{{ exam.duration }}" required>
+                    </div>
+                    <div class="form-group mt-3">
+                        <label for="num_attempts"><strong>Number of Attempts</strong></label>
+                        <input type="number" class="form-control" id="num_attempts" name="num_attempts" min="1"
+                               value="{{ exam.attempts }}" required>
+                    </div>
+                    <div class="form-group mt-3">
+                        <label for="instructions"><strong>Instructions</strong></label>
+                        <textarea class="form-control" id="instructions" name="instructions" rows="4">{{ exam.instructions }}</textarea>
+                    </div>
+                    <div class="form-group mt-3">
+                        <label for="scheduled_time"><strong>Scheduled Time</strong></label>
+                        <input type="datetime-local" class="form-control" id="scheduled_time" name="scheduled_time" 
+                               value="{{ exam.date }}" required>
+                    </div>
+                    <div class="form-group mt-3">
+                        <label>
+                            <input type="checkbox" id="access_code_required" name="access_code_required" 
+                                   style="transform: scale(1.5); margin-left: 6px; margin-right: 10px;"
+                                   {% if exam.access_code_required %}checked{% endif %}>
+                            <strong>Access Code Required</strong>
+                        </label>
+                    </div>
+                    <div class="form-group mt-3">
+                        <label for="access_code"><strong>Access Code</strong></label>
+                        <input type="text" class="form-control" id="access_code" name="access_code" 
+                               value="{{ exam.access_code }}" {% if not exam.access_code_required %}disabled{% endif %}>
+                    </div>
+                    <button type="submit" class="btn btn-primary"><strong>Update Exam Details</strong></button>
+                </div>
+            </div>
+        </form>
+
+        <form method="post" action="{% url 'teacher-modify-exam' exam.id %}">
+            {% csrf_token %}
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h3>Question Creator</h3>
+                </div>
+                <div class="card-body">
+                    <div class="form-group mt-3">
+                        <label for="question_bank"><strong>Question Bank</strong></label>
+                        <select class="form-control" id="question_bank" name="question_bank">
+                            <option value="" disabled selected>Select a question bank</option>
+                            {% for bank in question_bank %}
+                                <option value="{{ bank.id }}">{{ bank.subject }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group mt-3">
+                        <label for="questions"><strong>Question</strong></label>
+                        <div class="input-group">
+                            <input list="questions_list" class="form-control" id="questions" name="questions" required placeholder="Type your question or select from bank">
+                            <select class="form-control mt-2" id="questions_list" name="questions_list">
+                                <option value="" selected>Or select a question from bank</option>
+                                <div id="question_options"></div>
+                            </select>
+                            <script>
+                                const questionInput = document.getElementById('questions');
+                                const questionSelect = document.getElementById('questions_list');
+                                const questionbankSelect = document.getElementById('question_bank');
+
+                                questionbankSelect.addEventListener('change', function() {
+                                    // Clear previous options except the first
+                                    while (questionSelect.options.length > 1) {
+                                        questionSelect.remove(1);
+                                    }
+
+                                    // Find the selected bank's questions from a JS object (populated from Django context)
+                                    const selectedBankId = this.value;
+                                    const questionBanks = {{ question_bank|safe }};
+                                    const selectedBank = questionBanks.find(bank => bank.id == selectedBankId);
+
+                                    if (selectedBank && selectedBank.questions) {
+                                        selectedBank.questions.forEach(function(question) {
+                                            const option = document.createElement('option');
+                                            option.value = question.question;
+                                            option.textContent = question.question;
+                                            questionSelect.appendChild(option);
+                                        });
+                                    }
+                                });
+
+                                questionInput.addEventListener('input', function() {
+                                    if (this.value.trim() !== '') {
+                                        questionSelect.readOnly = true;
+                                    } else {
+                                        questionSelect.readOnly = false;
+                                    }
+                                });
+
+                                questionSelect.addEventListener('change', function() {
+                                    if (this.value !== '') {
+                                        questionInput.readOnly = true;
+                                        questionInput.value = this.value;
+                                    } else {
+                                        questionInput.readOnly = false;
+                                        questionInput.value = '';
+                                    }
+                                });
+                            </script>
+                        </div>
+                    </div>
+                    <div class="form-group mt-3">
+                        <label for="question_type"><strong>Question Type</strong></label>
+                        <select class="form-control" id="question_type" name="question_type" required>
+                            <option value="" disabled selected>Select question type</option>
+                            <option value="mcq_one">Multiple Choice (One Answer)</option>
+                            <option value="mcq_multi">Multiple Choice (Multiple Answers)</option>
+                            <option value="true_false">True or False</option>
+                            <option value="numerical">Numerical</option>
+                        </select>
+                    </div>
+                    <div id="choices_container"></div>
+                    <div id="answer_container" class="form-group mt-3">
+                        <label for="correct_answer"><strong>Correct Answer</strong></label>
+                        <input list="answers_list" class="form-control" id="correct_answer" name="correct_answer" required>
+                        <datalist id="answers_list"></datalist>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary"><strong>Add Question</strong></button>
+                </div>
+            </div>
+        </form>
+
+        <div class="card mt-4">
+            <div class="card-header">
+                <h3>Existing Questions</h3>
+            </div>
+            <div class="card-body">
+                <div class="form-group mt-3">
+                    {% if existing_questions %}
+                        {% for question in existing_questions %}
+                            <div class="form-group mt-3">
+                                <div class="card border-secondary">
+                                    <div class="card-header bg-light">
+                                        <h5 class="mb-0">
+                                            <div class="container-fluid d-flex justify-content-between align-items-center p-0">
+                                                Question {{ forloop.counter }}
+                                                <form method="post" action="{% url 'teacher-delete-question' exam.id question.id %}" class="mb-0">
+                                                    {% csrf_token %}
+                                                    <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Are you sure you want to delete this question?')">
+                                                        Delete
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        </h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="mb-3">
+                                            <label class="form-label text-primary mb-1"><strong>Question:</strong></label>
+                                            <div class="ms-3">{{ question.question_text }}</div>
+                                        </div>
+                                        <div class="mb-2">
+                                            <label class="form-label text-info mb-1"><strong>Correct Answer:</strong></label>
+                                            <div class="ms-3 p-2 bg-white border border-info rounded">
+                                                {{ question.correct_answer }}
+                                            </div>
+                                        </div>
+                                        {% if question.choices %}
+                                            <div class="mb-2">
+                                                <label class="form-label text-secondary mb-1"><strong>Choices:</strong></label>
+                                                <ul class="ms-3">
+                                                    {% for choice in question.choices %}
+                                                        <li>{{ choice }}</li>
+                                                    {% endfor %}
+                                                </ul>
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <p class="text-muted">No existing questions found.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<script src="{% static 'teacherside/js/questiontype_select.js' %}"></script>
+<script src="{% static 'teacherside/js/access_code.js' %}"></script>
+{% endblock content %}

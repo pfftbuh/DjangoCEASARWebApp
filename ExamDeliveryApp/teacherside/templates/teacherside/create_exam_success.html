@@ -1,0 +1,17 @@
+{% extends 'teacherside/base.html' %}
+
+{% block title %}Create Exam - MakiTEST{% endblock %}
+
+{% block header %}Create New Exam{% endblock %}
+
+{% block content %}
+<div class="alert alert-success mt-5" role="alert">
+    <h4 class="alert-heading">Exam Created Successfully!</h4>
+    <p>Your exam has been created and is now available in the exam management section.</p>
+    <hr>
+    <p class="mb-0">
+        <a href="/teacher/exams/manage" class="btn btn-primary">Go to Exam Management</a>
+        <a href="/teacher/exams/create" class="btn btn-secondary">Create Another Exam</a>
+    </p>
+</div>
+{% endblock %}

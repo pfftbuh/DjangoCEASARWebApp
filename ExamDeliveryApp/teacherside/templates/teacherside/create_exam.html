@@ -1,0 +1,66 @@
+{% extends 'teacherside/base.html' %}
+
+{% load static %}
+
+{% block title %}Create Exam - MakiTEST{% endblock %}
+
+{% block header %}Create New Exam{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8 offset-md-2">
+        <div class="card">
+            <div class="card-header">
+                <h3>Exam Details</h3>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                        <div class="form-group mt-3">
+                            <label for="exam_name"><strong>Exam Name</strong></label>
+                            <input type="text" class="form-control" id="exam_name" name="exam_name" required>
+                        </div>
+
+                        <div class="form-group mt-3">
+                            <label for="duration"><strong>Duration (minutes)</strong></label>
+                            <input type="number" class="form-control" id="duration" name="duration" required>
+                        </div>
+
+                        <div class="form-group mt-3">
+                            <label for="instructions"><strong>Instructions</strong></label>
+                            <textarea class="form-control" id="instructions" name="instructions" rows="4"></textarea>
+                        </div>
+
+                        <div class="form-group mt-3">
+                            <label for="scheduled_time"><strong>Scheduled Time</strong></label>
+                            <input type="datetime-local" class="form-control" id="scheduled_time" name="scheduled_time" required>
+                        </div>
+
+                        <div class="form-group mt-3">
+                            <label for="num_attempts"><strong>Number of Attempts</strong></label>
+                            <input type="number" class="form-control" id="num_attempts" name="num_attempts" min="1" value="1" required>
+                        </div>
+
+                        <div class="form-group mt-3">
+                            <label>
+                                <input type="checkbox" id="access_code_required" name="access_code_required" style="transform: scale(1.5); margin-left: 6px; margin-right: 10px;">
+                                <strong>Access Code Required</strong>
+                            </label>
+                        </div>
+
+                        <div class="form-group mt-3">
+                            <label for="access_code"><strong>Access Code</strong></label>
+                            <input type="text" class="form-control" id="access_code" name="access_code" required>
+                        </div>
+                    <div class="form-group">
+                        <button type="submit" class="btn btn-primary"><strong>Create Exam</strong></button>
+                        <a href="/teacher/exams/manage" class="btn btn-secondary"><strong>Cancel</strong></a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+<script src="{% static 'teacherside/js/access_code.js' %}"></script>
+
+{% endblock %}

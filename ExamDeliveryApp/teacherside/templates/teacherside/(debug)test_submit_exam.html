@@ -1,0 +1,37 @@
+{% extends 'teacherside/base.html' %}
+
+{% block content %}
+<div class="container mt-5 d-flex justify-content-center align-items-center" style="min-height: 80vh;">
+    <div class="card w-100" style="max-width: 600px; margin: auto; background-color: rgba(184, 213, 235, 0.17);">
+        <div class="card-body text-center">
+            <div class="alert alert-success" role="alert">
+                <h4 class="alert-heading">Exam Submitted!</h4>
+                <p>Your exam has been successfully submitted.</p>
+            </div>
+            <h5>Here are the list of detected events during your assessment session:</h5>
+            {% if event_log %}
+                <table class="table mt-4">
+                <thead>
+                <tr>
+                    <th>Event Type</th>
+                    <th>Count</th>
+                </tr>
+                </thead>
+                <tbody>
+                {% for event, value in event_log.items %}
+                    <tr>
+                        <td>{{ event }}</td>
+                        <td>{{ value }}</td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+                </table>
+            {% else %}
+                <p>No events detected.</p>
+            {% endif %}
+            <hr>
+            <a href="{% url 'teacher-home' %}" class="btn btn-primary mt-3">Go to Dashboard</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,92 @@
+{% extends "teacherside/base.html" %}
+
+{% block title %}Student Submission Details{% endblock %}
+
+{% block header %}Student Submission Details{% endblock %}
+
+{% block content %}
+<div class="card mb-4">
+    <div class="card-header bg-primary text-white">
+        <h3 class="mb-0">Submission Information</h3>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-6">
+                <p><strong>Student Name:</strong> {{ submission.student_name }}</p>
+                <p><strong>Exam Title:</strong> {{ exam.title }}</p>
+            </div>
+            <div class="col-md-6">
+                <p><strong>Submission ID:</strong> {{ submission.id }}</p>
+                <p><strong>Score:</strong> <span class="badge badge-success">{{ submission.score }}</span></p>
+                <p><strong>Exam Date:</strong> {{ exam.date }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header bg-info text-white">
+        <h3 class="mb-0">Questions and Answers</h3>
+    </div>
+    <div class="card-body">
+        {% if answer_details %}
+            {% for detail in answer_details %}
+            <div class="card mb-3 border-secondary">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">Question {{ forloop.counter }}</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <h6 class="text-primary">Question:</h6>
+                        <p class="ml-3">{{ detail.question }}</p>
+                    </div>
+                    <div class="mb-3">
+                        {% if detail.student_answer == detail.correct_answer %}
+                        <h6 class="text-success">Student's Answer:</h6>
+                        {% else %}
+                        <h6 class="text-danger">Student's Answer:</h6>
+                        {% endif %}
+                        <div class="ml-3 p-3 bg-light border rounded">
+                            {% if detail.student_answer %}
+                                <p class="mb-0">{{ detail.student_answer }}</p>
+                            {% else %}
+                                <p class="text-muted mb-0"><em>No answer provided</em></p>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="mb-2">
+                        <h6 class="text-info">Correct Answer:</h6>
+                        <div class="ml-3 p-2 bg-white border border-info rounded">
+                            <p class="mb-0">{{ detail.correct_answer }}</p>
+                        </div>
+                    </div>
+                    <div>
+                        <h6 class="text-secondary">Points Awarded:</h6>
+                        <p class="ml-3">
+                            <span class="badge badge-primary">
+                                {% if detail.student_answer == detail.correct_answer %}
+                                    {{ detail.points }} / {{ detail.points }}
+                                {% else %}
+                                    0 / {{ detail.points }}
+                                {% endif %}
+                            </span>
+                        </p>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="alert alert-warning" role="alert">
+                No questions found for this exam submission.
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="mt-4 mb-4">
+    <a href="{% url 'teacher-view-submissions' exam.id %}" class="btn btn-secondary">
+        <i class="fas fa-arrow-left"></i> Back to Submissions
+    </a>
+</div>
+
+{% endblock %}

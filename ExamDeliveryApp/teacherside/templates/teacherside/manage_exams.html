@@ -1,0 +1,77 @@
+{% extends "teacherside/base.html" %}
+
+{% block title %}Manage Exams{% endblock %}
+
+{% block header %}Manage Exams{% endblock %}
+
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>Manage Your Exams</h2>
+    <a href="{% url 'teacher-create-exam' %}" class="btn btn-success">Create New Exam</a>
+</div>
+
+<p>Here you can view, edit, delete, and start your exams.</p>
+
+{% if exams %}
+    {% for exam in exams %}
+    <div class="card mb-3">
+        <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h5 class="card-title">{{ exam.title }}</h5>
+                    <p class="card-text mb-2">
+                        <strong>Date:</strong> {{ exam.date }}<br>
+                        <span class="badge badge-info">{{ exam.question_count|default:"0" }} Questions</span>
+                        <span class="badge badge-secondary">{{ exam.attempts|default:"1" }} Attempts</span>
+                    </p>
+                </div>
+                <div>
+                    <a href="/teacher/exams/submissions/{{ exam.id }}/" class="btn btn-primary btn-sm" title="View Submissions">
+                        <i class="fas fa-eye"></i> View Submissions
+                    </a>
+                    <a href="/teacher/exams/edit/{{ exam.id }}/" class="btn btn-warning btn-sm" title="Edit Exam">
+                        <i class="fas fa-edit"></i> Edit Exam
+                    </a>
+                    <a href="/teacher/exams/start/{{ exam.id }}/" class="btn btn-success btn-sm" title="Start Exam">
+                        <i class="fas fa-play"></i> Start Exam
+                    </a>
+                    <button type="button" class="btn btn-danger btn-sm" data-toggle="modal" data-target="#deleteModal{{ exam.id }}" title="Delete Exam">
+                        <i class="fas fa-trash"></i> Delete
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div class="modal fade" id="deleteModal{{ exam.id }}" tabindex="-1" role="dialog" aria-labelledby="deleteModalLabel{{ exam.id }}" aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title" id="deleteModalLabel{{ exam.id }}">Confirm Delete</h5>
+                    <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    Are you sure you want to delete <strong>{{ exam.title }}</strong>? This action cannot be undone.
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                    <form action="/teacher/exams/delete/{{ exam.id }}/" method="post" class="d-inline">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-danger">Delete</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+{% else %}
+    <div class="alert alert-info">
+        <p class="mb-0">No exams found. <a href="{% url 'teacher-create-exam' %}" class="alert-link">Create your first exam</a>.</p>
+    </div>
+{% endif %}
+
+{% endblock content %}

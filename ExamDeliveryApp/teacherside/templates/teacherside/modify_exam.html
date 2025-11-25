@@ -24,12 +24,27 @@
                     <div class="form-group mt-3">
                         <label for="duration"><strong>Duration (minutes)</strong></label>
                         <input type="number" class="form-control" id="duration" name="duration" min="15"
-                               value="{{ exam.duration }}" required>
+                               value="{{ exam.time_limit }}" required>
                     </div>
                     <div class="form-group mt-3">
                         <label for="num_attempts"><strong>Number of Attempts</strong></label>
                         <input type="number" class="form-control" id="num_attempts" name="num_attempts" min="1"
-                               value="{{ exam.attempts }}" required>
+                               value="{{ exam.total_attempts }}" required>
+                    </div>
+                    <div class="form-group mt-3">
+                            <label for="class_list"><strong>Assign to Class</strong></label>
+                            <select class="form-control" id="class_list" name="class_list">
+                                <option value="" disabled selected>Select a class</option>
+                                {% for class in classes %}
+                                    <option value="{{ class }}">{{ class }}</option>
+                                {% endfor %}
+                            </select>
+                            <button type="button" class="btn btn-sm btn-success mt-2" id="add_class_btn">Add Class</button>
+                    </div>
+                    <div class="form-group mt-3">
+                            <label for="selected_classes"><strong>Selected Classes</strong></label>
+                            <ul id="selected_classes_list" class="list-group mb-2"></ul>
+                            <input type="hidden" id="selected_classes" name="selected_classes" value="{{ exam.class_designation|join:',' }}">
                     </div>
                     <div class="form-group mt-3">
                         <label for="instructions"><strong>Instructions</strong></label>
@@ -38,7 +53,7 @@
                     <div class="form-group mt-3">
                         <label for="scheduled_time"><strong>Scheduled Time</strong></label>
                         <input type="datetime-local" class="form-control" id="scheduled_time" name="scheduled_time" 
-                               value="{{ exam.date }}" required>
+                               value="{{ exam.exam_date|date:'Y-m-d\\TH:i' }}" required>
                     </div>
                     <div class="form-group mt-3">
                         <label>
@@ -70,20 +85,22 @@
                         <select class="form-control" id="question_bank" name="question_bank">
                             <option value="" disabled selected>Select a question bank</option>
                             {% for bank in question_bank %}
-                                <option value="{{ bank.id }}">{{ bank.subject }}</option>
+                                <option value="{{ bank.id }}">{{ bank.questionbank_name }}</option>
                             {% endfor %}
                         </select>
                     </div>
                     <div class="form-group mt-3">
+                    <label for="points"><strong>Points</strong></label>
+                    <input type="number" class="form-control" id="points" name="points" value="1" min="1" required placeholder="Points for this question">
+                    </div>
+                    <div class="form-group mt-3">
                         <label for="questions"><strong>Question</strong></label>
                         <div class="input-group">
-                            <input list="questions_list" class="form-control" id="questions" name="questions" required placeholder="Type your question or select from bank">
-                            <select class="form-control mt-2" id="questions_list" name="questions_list">
-                                <option value="" selected>Or select a question from bank</option>
-                                <div id="question_options"></div>
-                            </select>
-                           
+                            <input class="form-control" id="questions" name="questions" required placeholder="Type your question or select from bank">
                         </div>
+                        <select class="form-control mt-2" id="questions_list" name="questions_list">
+                            <option value="" selected>Or select a question from bank</option>
+                        </select>
                     </div>
                     <div class="form-group mt-3">
                         <label for="question_bank_answer"><strong>Question Bank Answer</strong></label>
@@ -169,4 +186,6 @@
 </div>
 <script src="{% static 'teacherside/js/questiontype_select.js' %}"></script>
 <script src="{% static 'teacherside/js/access_code.js' %}"></script>
+<script src="{% static 'teacherside/js/class_designation.js' %}"></script>
+
 {% endblock content %}

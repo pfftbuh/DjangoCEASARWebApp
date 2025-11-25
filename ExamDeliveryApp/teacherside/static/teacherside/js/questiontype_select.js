@@ -26,6 +26,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const questionInput = document.getElementById('questions');
     const questionSelect = document.getElementById('questions_list');
     const questionbankSelect = document.getElementById('question_bank');
+    const answerField = document.getElementById('question_bank_answer');
 
     // Access the question bank data passed from Django
     let questionBanks = [];
@@ -47,54 +48,57 @@ document.addEventListener('DOMContentLoaded', function() {
         console.error('Error fetching question banks:', error);
     });
 
-    const answerField = document.getElementById('question_bank_answer');
+    
     // Assuming you have a JS object mapping question IDs to answers
     // Example: window.questionBankAnswers = { "1": "Answer 1", "2": "Answer 2", ... }
     
+    // Handle question bank selection
     questionbankSelect.addEventListener('change', function() {
-        // Clear previous options except the first
-        while (questionSelect.options.length > 1) {
-            questionSelect.remove(1);
-        }
+    questionSelect.innerHTML = '<option value="" selected>Or select a question from bank</option>';
+    questionInput.value = '';
+    answerField.value = '';
+    questionInput.readOnly = false;
 
-        // Find the selected bank's questions
-        const selectedBankId = this.value;
-        const selectedBank = questionBanks.find(bank => bank.id == selectedBankId);
+    const selectedBankId = parseInt(this.value);
+    const selectedBank = questionBanks.find(bank => bank.id === selectedBankId);
 
-        if (selectedBank && selectedBank.questions) {
-            selectedBank.questions.forEach(function(question) {
-                const option = document.createElement('option');
-                option.value = question.question;
-                option.textContent = question.question;
-                questionSelect.appendChild(option);
-            });
-        }
-    });
+    console.log('Selected Bank ID:', selectedBankId);
+    console.log('Selected Bank:', selectedBank);
+
+    if (selectedBank && selectedBank.questions && selectedBank.questions.length > 0) {
+        selectedBank.questions.forEach(function(qa, index) {
+            console.log('Question:', qa.question, 'Answer:', qa.answer); 
+            const option = document.createElement('option');
+            option.value = index;
+            option.text = qa.question;
+            questionSelect.appendChild(option);
+        });
+    }
+});
 
     
     
     
     questionSelect.addEventListener('change', function() {
-        const selectedBankId = questionbankSelect.value;
-        const selectedBank = questionBanks.find(bank => bank.id == selectedBankId);
-        let selectedAnswer = '';
-        
+        const selectedBankId = parseInt(questionbankSelect.value);
+        const selectedBank = questionBanks.find(bank => bank.id === selectedBankId);
 
         if (this.value !== '') {
             questionInput.readOnly = true;
-            questionInput.value = this.value;
-
-            if (selectedBank && selectedBank.questions) {
-            const selectedQuestion = selectedBank.questions.find(q => q.question === this.value);
-            if (selectedQuestion && selectedQuestion.answer !== undefined) {
-                selectedAnswer = selectedQuestion.answer;
+            // Get the selected question object by index
+            const selectedIndex = parseInt(this.value);
+            if (selectedBank && selectedBank.questions && selectedBank.questions[selectedIndex]) {
+                const selectedQuestion = selectedBank.questions[selectedIndex];
+                questionInput.value = selectedQuestion.question;
+                answerField.value = selectedQuestion.answer;
+            } else {
+                questionInput.value = '';
+                answerField.value = '';
             }
-            }
-
-            answerField.value = selectedAnswer;
-        }   else {
+        } else {
             questionInput.readOnly = false;
             questionInput.value = '';
+            answerField.value = '';
         }
     });
 

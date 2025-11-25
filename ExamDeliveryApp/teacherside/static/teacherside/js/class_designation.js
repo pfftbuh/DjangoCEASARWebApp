@@ -14,6 +14,12 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
+    // Populate selectedClasses with existing class designations if present
+    if (selectedClassesInput.value) {
+        selectedClasses = selectedClassesInput.value.split(',').filter(Boolean);
+        updateSelectedClasses();
+    }
+
     function updateSelectedClasses() {
         selectedClassesList.innerHTML = '';
         selectedClasses.forEach(function(className, idx) {

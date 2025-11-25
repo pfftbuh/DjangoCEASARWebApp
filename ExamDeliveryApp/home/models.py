@@ -66,8 +66,18 @@ class AdminProfile(models.Model):
 
 class Exams(models.Model):
     title = models.CharField(max_length=200)
-    description = models.TextField()
+    instructions = models.TextField()
+    total_points = models.FloatField()
+    total_attempts = models.IntegerField(default=1)
+    questions = models.JSONField(default=list)
+    exam_date = models.DateTimeField(null=True, blank=True)
+    time_limit = models.IntegerField(help_text="Time limit in minutes", default=60)
+    class_designation = models.JSONField(default=list, blank=True, help_text="List of class numbers")
+    access_code = models.CharField(max_length=50, blank=True)
+    access_code_required = models.BooleanField(default=False)
+    question_count = models.IntegerField(default=0)
     date_created = models.DateTimeField(auto_now_add=True)
+    created_by = models.ForeignKey(Profile, on_delete=models.CASCADE)
 
     def __str__(self):
         return self.title
@@ -78,8 +88,12 @@ class Exams(models.Model):
         verbose_name_plural = "Exams"
 
 class ExamSubmissions(models.Model):
-    exam = models.ForeignKey(Exams, on_delete=models.CASCADE)
-    student = models.ForeignKey(StudentProfile, on_delete=models.CASCADE)
+    exam = models.IntegerField(default=1)
+    attempt_number = models.IntegerField(default=1)
+    answers = models.JSONField(default=list)
+    event_log = models.JSONField(default=list, blank=True)
+    behave_score = models.FloatField(default=0)
+    student = models.ForeignKey(StudentProfile, on_delete=models.CASCADE, null=True, blank=True)
     score = models.FloatField()
     submission_date = models.DateTimeField(auto_now_add=True)
 
@@ -92,11 +106,12 @@ class ExamSubmissions(models.Model):
         verbose_name_plural = "Exam Submissions"
 
 class QuestionBanks(models.Model):
-    question_text = models.TextField()
-    correct_answer = models.TextField()
+    questionbank_name = models.CharField(max_length=200, default="General Question Bank")
+    question_and_answer = models.JSONField(default=list)
+    created_by = models.ForeignKey(Profile, on_delete=models.CASCADE)
 
     def __str__(self):
-        return f"Question for {self.exam.title}"
+        return f"Question Bank: {self.questionbank_name}"
     
     class Meta:
         db_table = "Question Banks"

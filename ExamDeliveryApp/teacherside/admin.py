@@ -2,6 +2,7 @@ from django.contrib import admin
 from home.models import *
 
 # Register your models here.
+# TO BE MOVED TO HOME
 admin.site.register(Profile)
 admin.site.register(StudentProfile)
 admin.site.register(TeacherProfile)

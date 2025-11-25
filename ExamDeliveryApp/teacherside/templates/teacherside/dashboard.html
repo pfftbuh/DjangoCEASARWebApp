@@ -9,11 +9,13 @@
 <h2>Welcome, {{ teacher_name|default:"Jane Doe" }}!</h2>
 <p>Here is your dashboard where you can access your profile, exams, grades, and more.</p>
 
+{{ exams|length }} Exams Available
+
 {% for exam in exams %}
     <div class="card mb-3">
         <div class="card-body">
             <h5 class="card-title">{{ exam.title }}</h5>
-            <p class="card-text">Date: {{ exam.date }}</p>
+            <p class="card-text">Date: {{ exam.exam_date }}</p>
             <a href="/teacher/exams/submissions/{{ exam.id }}/" class="btn btn-primary">View Exam</a>
         </div>
     </div>

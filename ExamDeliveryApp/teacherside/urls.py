@@ -13,9 +13,11 @@ urlpatterns = [
     path('exams/edit/<int:exam_id>/', view=views.teacher_modify_exam, name='teacher-modify-exam'),
     path('exams/start/<int:exam_id>/', view=views.teacher_create_exam, name='teacher-start-exam'),
     path('exam/<int:exam_id>/delete-question/<int:question_id>/', views.teacher_delete_question, name='teacher-delete-question'),
+    path('exam/<int:exam_id>/delete/', views.teacher_delete_exam, name='teacher-delete-exam'),
     path('exams/edit/details/<int:exam_id>/', view=views.teacher_modify_exam_details, name='teacher-modify-exam-details'),
     path('violation/logs/', view=views.teacher_violation_logs, name='teacher-violation-logs'),
-    path('api/question-banks/', views.get_question_banks_api, name='api-question-banks'),
+    path('api/question-banks/', view=views.get_question_banks_api, name='api-question-banks'),
+    path('api/update/specialization', view=views.update_specialization, name='api-update-specialization'),
 
     ## FOR TESTING PURPOSES ONLY
     path('violation/check/', view=views.violation_check, name='violation-check'),

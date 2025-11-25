@@ -3,7 +3,7 @@ from django.contrib.auth.models import User
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.views import LoginView
 from django.shortcuts import redirect
-from home.models import Profile, StudentProfile
+from home.models import Profile, StudentProfile, TeacherProfile
 
 
 class SignUpForm(UserCreationForm):
@@ -42,7 +42,6 @@ class SignUpForm(UserCreationForm):
     )
     class_designation = forms.CharField(
         max_length=4,
-        min_length= 4,
         required=True,
         widget=forms.TextInput(attrs={'placeholder': 'Type N/A if not a student'}),
         label="Class Designation",
@@ -119,8 +118,10 @@ class SignUpForm(UserCreationForm):
                     class_designation=self.cleaned_data['class_designation']
                 )
             elif self.cleaned_data['role'] == 'Teacher':
-                pass  # Implement TeacherProfile creation if needed
-                
+                TeacherProfile.objects.create(
+                    profile=user.profile,
+                    subject_specialization="General"
+                )
 
         return user
     

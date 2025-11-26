@@ -22,5 +22,6 @@ urlpatterns = [
     path('', include('home.urls')),
     path('student/', include('studentside.urls')),
     path('teacher/', include('teacherside.urls')),
+    path('camera/', include('cameratrack.urls')),
     # The `adminside` app has been removed; do not include its URLs.
 ]

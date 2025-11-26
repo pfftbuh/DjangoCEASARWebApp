@@ -1,0 +1,30 @@
+{% extends "cameratrack/base.html" %}
+{% load static %}
+
+{% block content %}
+<div style="text-align: center;">
+    <h1>Camera App</h1>
+    <p>Welcome to the app.</p>
+    <img src="{% url 'video' %}" width="640" height="480" alt="Live Camera Feed">
+
+    <div style="margin-top: 20px;">
+        <p><strong>Eye Midpoint:</strong></p>
+        <p>X: <span id="mid-x">-</span>, Y: <span id="mid-y">-</span></p>
+    </div>
+</div>
+
+<script>
+    function fetchEyeMidpoint() {
+        fetch("{% url 'eye-midpoint' %}")
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('mid-x').textContent = data.mid_x;
+                document.getElementById('mid-y').textContent = data.mid_y;
+            })
+            .catch(error => console.error('Error fetching eye midpoint:', error));
+    }
+
+    // Fetch eye midpoint every 128ms
+    setInterval(fetchEyeMidpoint, 128);
+</script>
+{% endblock %}

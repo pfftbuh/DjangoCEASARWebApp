@@ -500,9 +500,9 @@ def teacher_create_exam(request):
 
 @login_required_role(allowed_roles=['Teacher', 'Admin'])
 def teacher_view_submissions(request, exam_id):
-    exam = next((exam for exam in exams if exam['id'] == exam_id), None)
-    submissions = [sub for sub in examsubmissions if sub['exam_id'] == exam_id]
-    return render(request, 'teacherside/view_submissions.html', {'exam': exam, 'submissions': submissions})
+    exam_submissions = ExamSubmissions.objects.filter(exam=exam_id)
+    exam = Exams.objects.filter(id=exam_id).first()
+    return render(request, 'teacherside/view_submissions.html', {'exam': exam, 'submissions': exam_submissions})
 
 
 

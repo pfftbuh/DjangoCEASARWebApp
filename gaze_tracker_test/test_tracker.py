@@ -3,6 +3,37 @@ import numpy as np
 import mediapipe as mp
 from collections import deque
 
+
+# Calculate bounding box around both eyes
+def get_eye_bbox(all_eye_points, w, h, padding=5):
+    all_eye_points = np.array(all_eye_points)
+    x_min = max(0, int(all_eye_points[:, 0].min()) - padding - 20)
+    x_max = min(w, int(all_eye_points[:, 0].max()) + padding + 20)
+    y_min = max(0, int(all_eye_points[:, 1].min()) - padding - 10)
+    y_max = min(h, int(all_eye_points[:, 1].max()) + padding + 10)
+    return x_min, x_max, y_min, y_max
+
+
+# Draw eye landmarks and return points and frame
+def draw_eye_landmarks(landmarks, indices, w, h, frame):
+                all_eye_points = []
+                all_eye_idx = []
+                for idx in indices:
+                    landmark = landmarks[idx]
+                    x = int(landmark.x * w)
+                    y = int(landmark.y * h)
+                    all_eye_points.append((x, y))
+                    all_eye_idx.append(idx)
+                    cv2.circle(frame, (x, y), 1, (255, 255, 0), -1)
+                return all_eye_points, all_eye_idx, frame
+
+
+# Find mean of calibration samples
+def calculate_mean(samples):
+    return (np.mean(samples), True) if samples else (0, False)
+
+
+
 cam = cv2.VideoCapture(0)
 mp_face_mesh = mp.solutions.face_mesh
 face_mesh = mp_face_mesh.FaceMesh(static_image_mode=False,
@@ -70,14 +101,7 @@ while True:
                 y = landmark.y * h
                 left_eye_points.append((x, y))
                 
-
-            for idx in left_eye_indices + right_eye_indices:
-                landmark = landmarks[idx]
-                x = int(landmark.x * w)
-                y = int(landmark.y * h)
-                all_eye_points.append((x, y))
-                all_eye_idx.append(idx)
-                cv2.circle(frame, (x, y), 1, (255, 255, 0), -1)
+            all_eye_points, all_eye_idx, frame = draw_eye_landmarks(landmarks, left_eye_indices + right_eye_indices, w, h, frame)
 
             # nose bridge point 10
             nose_bridge = landmarks[10]
@@ -85,12 +109,8 @@ while True:
             nose_bridge_y = int(nose_bridge.y * h)
             cv2.circle(frame, (nose_bridge_x, nose_bridge_y), 3, (0, 255, 255), -1)
 
-            # Calculate bounding box around both eyes
-            all_eye_points = np.array(all_eye_points)
-            x_min = max(0, int(all_eye_points[:, 0].min()) - padding - 20)
-            x_max = min(w, int(all_eye_points[:, 0].max()) + padding + 20)
-            y_min = max(0, int(all_eye_points[:, 1].min()) - padding - 10)
-            y_max = min(h, int(all_eye_points[:, 1].max()) + padding + 10)
+
+            x_min, x_max, y_min, y_max = get_eye_bbox(all_eye_points, w, h, padding)
 
             # Crop the eye region from the frame
             eye_frame = frame[y_min:y_max, x_min:x_max].copy()
@@ -158,10 +178,9 @@ while True:
                            (50, 180), cv2.FONT_HERSHEY_SIMPLEX, 1.5, (255, 255, 255), 2)
                 
                 if len(calibration_samples) == 60:
-                    calibration_height = np.mean(calibration_samples)
+                    calibration_height, is_calibrated = calculate_mean(calibration_samples)
                     up_threshold = calibration_height * 1.05
                     down_threshold = calibration_height * 0.95
-                    is_calibrated = True
                     print(f"Vertical Calibrated! Center height: {calibration_height:.2f}")
                     print(f"Up threshold: {up_threshold:.2f}, Down threshold: {down_threshold:.2f}")
             
@@ -175,11 +194,10 @@ while True:
                            (50, 180), cv2.FONT_HERSHEY_SIMPLEX, 1.5, (255, 255, 255), 2)
                 
                 if len(calibration_h_samples) == 60:
-                    calibration_horizontal = np.mean(calibration_h_samples)
+                    calibration_horizontal, is_h_calibrated = calculate_mean(calibration_h_samples)
                     # Threshold: ±15% from center position
                     left_threshold = calibration_horizontal - 0.15
                     right_threshold = calibration_horizontal + 0.15
-                    is_h_calibrated = True
                     print(f"Horizontal Calibrated! Center: {calibration_horizontal:.3f}")
                     print(f"Left threshold: {left_threshold:.3f}, Right threshold: {right_threshold:.3f}")
             

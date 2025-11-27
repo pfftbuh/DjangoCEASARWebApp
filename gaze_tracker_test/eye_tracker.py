@@ -15,9 +15,11 @@ left_eye_indices = [33, 7, 163, 144, 145, 153, 154, 155, 133, 173, 157, 158, 159
 right_eye_indices = [263, 249, 390, 373, 374, 380, 381, 382, 362, 398, 384, 385, 386, 387, 388, 466, 359]
 
 face_indices = [234, 454, 10, 152, 1, 19, 24, 110, 237, 130, 243, 112, 26, 389, 356, 454]
+
+# Cropped Eye Frame Padding
 padding = 5
 
-# Check 477 and 472 position in relation to 
+
 
 
 while True:
@@ -65,11 +67,7 @@ while True:
                 # Draw index as text in frame
                 #cv2.putText(frame, str(idx), (x, y), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1)
 
-            # nose bridge point 10
-            nose_bridge = landmarks[10]
-            nose_bridge_x = int(nose_bridge.x * w)
-            nose_bridge_y = int(nose_bridge.y * h)
-            cv2.circle(frame, (nose_bridge_x, nose_bridge_y), 3, (0, 255, 255), -1)
+            
 
             # Calculate bounding box around both eyes
             all_eye_points = np.array(all_eye_points)

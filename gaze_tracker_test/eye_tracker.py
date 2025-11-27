@@ -89,27 +89,42 @@ while True:
             
             # Create a rectangle with landmarks 160, 153 for left eye
             # left eye rectangle
-            le_points = []
+            le_points_list = []
             le_x1 = int(landmarks[160].x * w)
             le_y1 = int(landmarks[160].y * h)
             le_x2 = int(landmarks[153].x * w)
             le_y2 = int(landmarks[153].y * h)
-            le_points.append((le_x1, le_y1))
-            le_points.append((le_x2, le_y2))
+            le_points_list.append((le_x1, le_y1))
+            le_points_list.append((le_x2, le_y2))
 
             # Create a rectangle with landmarks 380, 387 for right eye
-            re_points = []
+            re_points_list = []
             re_x1 = int(landmarks[380].x * w)
             re_y1 = int(landmarks[380].y * h)
             re_x2 = int(landmarks[387].x * w)
             re_y2 = int(landmarks[387].y * h)
-            re_points.append((re_x1, re_y1))
-            re_points.append((re_x2, re_y2))
+            re_points_list.append((re_x1, re_y1))
+            re_points_list.append((re_x2, re_y2))
 
+            # Mid point x
+            r_mid_x = (re_x1 + re_x2) // 2
+            r_mid_y = (re_y1 + re_y2) // 2
+
+            # Convert to eye_frame coordinates
+            r_mid_x -= x_min
+            r_mid_y -= y_min
+            ef_re_y2 = re_y2 - y_min
+            ef_re_y1 = re_y1 - y_min
+            ef_re_x1 = re_x1 - x_min
+            ef_re_x2 = re_x2 - x_min
+
+            #cross in the middle of rectangle
+            cv2.line(eye_frame, (r_mid_x, ef_re_y1), (r_mid_x, ef_re_y2), (255, 0 , 0), 1)
+            cv2.line(eye_frame, (ef_re_x1, r_mid_y), (ef_re_x2, r_mid_y), (255, 0 , 0), 1)
 
             # Draw all eye landmarks on the cropped eye frame
-            le_points = np.array(le_points) - np.array([x_min, y_min])
-            re_points = np.array(re_points) - np.array([x_min, y_min])
+            le_points = np.array(le_points_list) - np.array([x_min, y_min])
+            re_points = np.array(re_points_list) - np.array([x_min, y_min])
             
             cv2.rectangle(eye_frame, tuple(le_points[0]), tuple(le_points[1]), (255, 0, 0), 1)
             cv2.rectangle(eye_frame, tuple(re_points[0]), tuple(re_points[1]), (255, 0, 0), 1)

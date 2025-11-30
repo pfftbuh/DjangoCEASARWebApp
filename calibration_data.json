@@ -1,0 +1,21 @@
+{
+    "calibration_height_up": 13.186666666666667,
+    "calibration_height_center": 12.473333333333333,
+    "calibration_height_down": 10.516666666666664,
+    "calibration_horizontal_left": 0.3420646265233524,
+    "calibration_horizontal_center": 0.507895281308562,
+    "calibration_horizontal_right": 0.7575468463239396,
+    "calibration_offset_yaw": -0.6126999822212156,
+    "calibration_offset_pitch": 8.160162822380727,
+    "up_threshold": 12.83,
+    "down_threshold": 11.494999999999997,
+    "left_threshold": 0.4249799539159572,
+    "right_threshold": 0.6327210638162508,
+    "distance_threshold": 70.68623762200122,
+    "is_up_calibrated": true,
+    "is_center_calibrated": true,
+    "is_down_calibrated": true,
+    "is_left_calibrated": true,
+    "is_h_center_calibrated": true,
+    "is_right_calibrated": true
+}

@@ -1,8 +1,8 @@
+import math
 import cv2
 import numpy as np
 import mediapipe as mp
 from collections import deque
-import math
 
 
 # Calculate bounding box around both eyes
@@ -60,6 +60,11 @@ right_eye_indices = [263, 249, 390, 373, 374, 380, 381, 382, 362, 398, 384, 385,
 face_indices = [234, 454, 10, 152, 1, 19, 24, 110, 237, 130, 243, 112, 26, 389, 356, 454]
 padding = 5
 
+# y width in centimeters
+y_dist = [240, 132, 350, 560, 200]
+cm_dist = [50, 90, 38, 20, 70]
+dist_coff = np.polyfit(y_dist, cm_dist, deg=2)
+
 # Face Axis Key Indexes
 KEY_FACE_LANDMARKS = {
     "left":234,
@@ -74,8 +79,16 @@ ray_directions = deque(maxlen=5)
 ray_length = 50
 
 # Gaze Circle Position
-gaze_eye_position = (640, 360)  # Initial position at the center of a 1280x720 frame
+iris_gaze_position = (640, 360)  # Initial position at the center of a 1280x720 frame
 
+# Utility deques for smoothing
+face_gaze_position_history = deque(maxlen=5)
+iris_gaze_position_history = deque(maxlen=5)
+combined_color_history = deque(maxlen=5)
+
+
+# Calibration samples deques
+calibration_distance_samples = deque(maxlen=60)
 calibration_left_samples = deque(maxlen=60)
 calibration_h_center_samples = deque(maxlen=60)
 calibration_right_samples = deque(maxlen=60)
@@ -106,6 +119,7 @@ is_h_center_calibrated = False
 is_right_calibrated = False
 horizontal_history = deque(maxlen=5)
 
+# Combined gaze direction string
 combined_gaze = None
 
 # Thresholds (will be calculated from calibration data)
@@ -113,6 +127,7 @@ up_threshold = 0
 down_threshold = 0
 left_threshold = 0
 right_threshold = 0
+distance_threshold = 0
 
 calibration_stage = -1  # -1=waiting to start, 0=up, 1=center, 2=down, 3=left, 4=h_center, 5=right, 6=done
 
@@ -145,6 +160,9 @@ while True:
 
 
             # ============================================= FACE AXIS ALGORITHMS =============================================== #
+
+            # region FACE AXIS ALGORITHMS
+
             def landmark_to_np(landmark, w, h):
                 return np.array([landmark.x * w, landmark.y * h, landmark.z * w])
 
@@ -160,6 +178,16 @@ while True:
             bottom_pt = key_points['bottom']
             top_pt = key_points['top']
             front_pt = key_points['front']
+
+            # Head Distance Estimation (simple approximation)
+            pointLeft = landmark_to_np(landmarks[145], w, h)
+            pointRight = landmark_to_np(landmarks[374], w, h)
+            width_pts = math.sqrt((pointLeft[0] - pointRight[0])**2 + (pointLeft[1] - pointRight[1])**2)
+            A, B, C = dist_coff
+            distanceCM = A * width_pts**2 + B * width_pts + C
+
+            # Write width_pts in frame
+            cv2.putText(frame, f"Distance CM: {distanceCM:.2f}", (50, 500), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)    
 
             # Oriented axes based on head geometry
             right_axis = (right_pt - left_pt)
@@ -258,7 +286,7 @@ while True:
             screen_frame_w, screen_frame_h = screen_frame_res
             
             # Map to full screen resolution
-            screen_x = int(((yaw_deg - (180 - yawDegrees)) / (2 * yawDegrees)) * screen_frame_w)
+            screen_x = int(screen_frame_w - (((yaw_deg - (180 - yawDegrees)) / (2 * yawDegrees)) * screen_frame_w))
             screen_y = int(((180 + pitchDegrees - pitch_deg) / (2 * pitchDegrees)) * screen_frame_h)
             # Clamp screen position to monitor bounds
             if(screen_x < 10):
@@ -274,6 +302,15 @@ while True:
             cv2.putText(frame, f"Gaze Pos: ({screen_x}, {screen_y})", (w - 300, h - 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
             
             face_gaze_position = (screen_x, screen_y)
+            face_gaze_position_history.append(face_gaze_position)
+            
+            if len(face_gaze_position_history) > 0:
+                # Smooth gaze position
+                smoothed_x = int(np.mean([pos[0] for pos in face_gaze_position_history] + [face_gaze_position[0]]))
+                smoothed_y = int(np.mean([pos[1] for pos in face_gaze_position_history] + [face_gaze_position[1]]))
+                face_gaze_position = (smoothed_x, smoothed_y)
+            
+            # endregion FACE AXIS ALGORITHMS
 
             # ============================================= FACE AXIS ALGORITHMS =============================================== #
 
@@ -286,9 +323,6 @@ while True:
 
             # Crop the eye region from the frame
             eye_frame = frame[y_min:y_max, x_min:x_max].copy()
-
-            # Fixed Dimensions
-            eye_frame = cv2.resize(eye_frame, (600, 300))
 
             # Convert right eye points to eye_frame coordinates
             right_eye_points = np.array(right_eye_points) - np.array([x_min, y_min])
@@ -342,7 +376,6 @@ while True:
             ef_avg_origin = avg_origin - np.array([x_min, y_min, 0])
 
             # Draw ray in eye_frame
-            eye_frame = frame[y_min:y_max, x_min:x_max].copy()
             cv2.line(eye_frame, project(ef_avg_origin), project(ef_ray_end), (15, 255, 0), 3)
 
             # Mid point for rectangle cross
@@ -383,28 +416,20 @@ while True:
             cv2.rectangle(eye_frame, tuple(re_points[0]), tuple(re_points[1]), (255, 0, 0), 1)
 
             # Display measurements
+            # Place left eye info at the top left of the eye frame
             cv2.putText(eye_frame, f"L_H: {left_rect_height:.0f}", 
-                       tuple(le_points[0]), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1)
+                        (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1)
             cv2.putText(eye_frame, f"L_Pos: {left_iris_offset:.2f}", 
-                       (tuple(le_points[0])[0], tuple(le_points[0])[1] + 15), 
-                       cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 0, 255), 1)
+                        (10, 45), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 0, 255), 1)
             
+            # Place right eye info on the top right of the eye frame
+            right_text_x = eye_frame.shape[1] - 170  # adjust as needed for padding
+            right_text_y = 30
             cv2.putText(eye_frame, f"R_H: {right_rect_height:.0f}", 
-                       tuple(re_points[0]), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1)
+                        (right_text_x, right_text_y), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1)
             cv2.putText(eye_frame, f"R_Pos: {right_iris_offset:.2f}", 
-                       (tuple(re_points[0])[0], tuple(re_points[0])[1] + 15), 
-                       cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0, 165, 255), 1)
-
-            # =========================== DEBUG ONLY =========================== #
-            # # Draw all eye landmarks
-            # all_eye_points = np.array(all_eye_points) - np.array([x_min, y_min])
-            # for point in all_eye_points:
-            #     cv2.circle(eye_frame, tuple(point), 1, (0, 255, 255), -1)
-            #     idx = all_eye_idx[all_eye_points.tolist().index(point.tolist())]
-            #     if idx in (160, 153, 380, 387):
-            #         cv2.putText(eye_frame, str(idx), tuple(point), 
-            #                    cv2.FONT_HERSHEY_SIMPLEX, 0.3, (255, 255, 255), 1) 
-            # =========================== DEBUG ONLY =========================== #
+                        (right_text_x, right_text_y + 15), 
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0, 165, 255), 1)
 
             # Draw iris centers
             right_eye_center = np.mean(right_eye_points, axis=0).astype(int)
@@ -412,8 +437,9 @@ while True:
 
             left_eye_center = np.mean(left_eye_points, axis=0).astype(int)
             cv2.circle(eye_frame, tuple(left_eye_center), 3, (0, 0, 255), -1)
-                
-            eye_frame = cv2.resize(eye_frame, (eye_frame.shape[1]+50, eye_frame.shape[0]+50))          
+            
+            # Fixed Dimensions
+            eye_frame = cv2.resize(eye_frame, (900, 400))         
             cv2.imshow('Cropped Eyes', eye_frame)
 
             # ============================================= EYE FRAME DRAWING =============================================== #
@@ -436,6 +462,8 @@ while True:
             if calibration_stage == 0:  # Calibrate UP
                 if len(calibration_up_samples) < 60:
                     calibration_up_samples.append(smoothed_height)
+                if len(calibration_distance_samples) < 10:
+                    calibration_distance_samples.append(distanceCM)                
                 cv2.putText(frame, "CALIBRATION: Look UP", 
                            (50, 100), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 255, 0), 3)
                 cv2.putText(frame, f"Samples: {len(calibration_up_samples)}/60", 
@@ -452,6 +480,8 @@ while True:
             elif calibration_stage == 1:  # Calibrate CENTER (vertical)
                 if len(calibration_center_samples) < 60:
                     calibration_center_samples.append(smoothed_height)
+                if len(calibration_distance_samples) < 20:
+                    calibration_distance_samples.append(distanceCM)  
                 cv2.putText(frame, "CALIBRATION: Look CENTER", 
                            (50, 100), cv2.FONT_HERSHEY_SIMPLEX, 2, (255, 255, 0), 3)
                 cv2.putText(frame, f"Samples: {len(calibration_center_samples)}/60", 
@@ -467,6 +497,8 @@ while True:
             elif calibration_stage == 2:  # Calibrate DOWN
                 if len(calibration_down_samples) < 60:
                     calibration_down_samples.append(smoothed_height)
+                if len(calibration_distance_samples) < 30:
+                    calibration_distance_samples.append(distanceCM)  
                 cv2.putText(frame, "CALIBRATION: Look DOWN", 
                            (50, 100), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 0, 255), 3)
                 cv2.putText(frame, f"Samples: {len(calibration_down_samples)}/60", 
@@ -487,6 +519,8 @@ while True:
             elif calibration_stage == 3:  # Calibrate LEFT
                 if len(calibration_left_samples) < 60:
                     calibration_left_samples.append(smoothed_horizontal)
+                if len(calibration_distance_samples) < 40:
+                    calibration_distance_samples.append(distanceCM)  
                 cv2.putText(frame, "CALIBRATION: Look LEFT", 
                            (50, 100), cv2.FONT_HERSHEY_SIMPLEX, 2, (255, 0, 255), 3)
                 cv2.putText(frame, f"Samples: {len(calibration_left_samples)}/60", 
@@ -502,6 +536,8 @@ while True:
             elif calibration_stage == 4:  # Calibrate CENTER (horizontal)
                 if len(calibration_h_center_samples) < 60:
                     calibration_h_center_samples.append(smoothed_horizontal)
+                if len(calibration_distance_samples) < 50:
+                    calibration_distance_samples.append(distanceCM)  
                 cv2.putText(frame, "CALIBRATION: Look CENTER", 
                            (50, 100), cv2.FONT_HERSHEY_SIMPLEX, 2, (255, 255, 0), 3)
                 cv2.putText(frame, f"Samples: {len(calibration_h_center_samples)}/60", 
@@ -517,7 +553,8 @@ while True:
             elif calibration_stage == 5:  # Calibrate RIGHT
                 if len(calibration_right_samples) < 60:
                     calibration_right_samples.append(smoothed_horizontal)
-                    
+                if len(calibration_distance_samples) < 60:
+                    calibration_distance_samples.append(distanceCM) 
                 cv2.putText(frame, "CALIBRATION: Look RIGHT", 
                            (50, 100), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 165, 255), 3)
                 cv2.putText(frame, f"Samples: {len(calibration_right_samples)}/60", 
@@ -536,6 +573,13 @@ while True:
                     
             
             else:  # calibration_stage == 6 (tracking mode)
+                # Calculate distance threshold
+                distance_threshold, _ = calculate_mean(calibration_distance_samples)
+                if distanceCM > (distance_threshold + 10):
+                    distance_status = "FAR"
+                else:
+                    distance_status = "GOOD"
+
                 # Determine vertical gaze (up/down)
                 if smoothed_height > up_threshold:
                     vertical_gaze = "UP"
@@ -574,6 +618,10 @@ while True:
                            (50, 180), cv2.FONT_HERSHEY_SIMPLEX, 1.2, v_color, 2)
                 cv2.putText(frame, f"H: {horizontal_gaze}", 
                            (50, 230), cv2.FONT_HERSHEY_SIMPLEX, 1.2, h_color, 2)
+
+                #Display distance status
+                cv2.putText(frame, f"Distance: {distance_status}", 
+                           (50, 260), cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0, 255, 0) if distance_status == "GOOD" else (0, 0, 255), 2)  
                 
                 # Display metrics with calibration points
                 cv2.putText(frame, f"Height: {smoothed_height:.1f} (U: {calibration_height_up:.0f} C:{calibration_height_center:.0f} D:{calibration_height_down:.0f})", 
@@ -719,7 +767,14 @@ while True:
                 gaze_y = max(0, min(720, gaze_y))
                 
                 # Update gaze position
-                gaze_eye_position = (gaze_x, gaze_y)
+                iris_gaze_position = (gaze_x, gaze_y)
+                iris_gaze_position_history.append(iris_gaze_position)
+
+                if len(iris_gaze_position_history) > 0 :
+                    # Smooth gaze position
+                    smoothed_x = int(np.mean([pos[0] for pos in iris_gaze_position_history] + [iris_gaze_position[0]]))
+                    smoothed_y = int(np.mean([pos[1] for pos in iris_gaze_position_history] + [iris_gaze_position[1]]))
+                    iris_gaze_position = (smoothed_x, smoothed_y)
                 
                 # Display normalized iris positions on eye frame
                 cv2.putText(eye_frame, f"Iris X: {avg_iris_x_norm:.2f}", 
@@ -769,21 +824,21 @@ while True:
         cv2.circle(gaze_frame, face_gaze_position, 15, (255, 0, 0), -1)
 
         # draw circle at eye-based gaze position
-        cv2.circle(gaze_frame, gaze_eye_position, 15, (0, 0, 255), -1)
+        cv2.circle(gaze_frame, iris_gaze_position, 15, (0, 0, 255), -1)
 
         # Weighted average of the two gaze positions
         # Adjust weights as needed: higher weight = more influence
         face_weight = 0.2  # 20% face-based tracking
         eye_weight = 0.8   # 80% eye-based tracking
         
-        weighted_gaze_x = int((face_gaze_position[0] * face_weight + gaze_eye_position[0] * eye_weight))
-        weighted_gaze_y = int((face_gaze_position[1] * face_weight + gaze_eye_position[1] * eye_weight))
+        weighted_gaze_x = int((face_gaze_position[0] * face_weight + iris_gaze_position[0] * eye_weight))
+        weighted_gaze_y = int((face_gaze_position[1] * face_weight + iris_gaze_position[1] * eye_weight))
 
         # draw circle at the weighted gaze position
         cv2.circle(gaze_frame, (weighted_gaze_x, weighted_gaze_y), 15, (0, 255, 255), -1)
         # Display legend following circles
         cv2.putText(gaze_frame, "Face Gaze (Blue)", (face_gaze_position[0], face_gaze_position[1]), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 0, 0), 2)
-        cv2.putText(gaze_frame, "Eye Gaze (Red)", (gaze_eye_position[0], gaze_eye_position[1]), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
+        cv2.putText(gaze_frame, "Eye Gaze (Red)", (iris_gaze_position[0], iris_gaze_position[1]), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
         cv2.putText(gaze_frame, "Weighted Gaze (Yellow)", (weighted_gaze_x, weighted_gaze_y), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2)
 
         cv2.imshow('Gaze Position', gaze_frame)

@@ -224,7 +224,7 @@ class CameraTrack:
     
     def get_frame(self):
         # Unpack constants
-        
+        # region Unpack Constants
         # left and right eyelid landmark indices
         left_eye_indices = self.track_constants.left_eye_indices
         right_eye_indices = self.track_constants.right_eye_indices
@@ -297,6 +297,7 @@ class CameraTrack:
         right_threshold = self.right_threshold
         distance_threshold = self.distance_threshold
         calibration_stage = self.calibration_stage
+        # endregion Unpack Constants
         
         # Read frame from camera
         ret, frame = self.cam.read()
@@ -937,7 +938,7 @@ class CameraTrack:
                 #endregion Calibration & Gaze Detection
 
             # ============================================ CALIBRATION & GAZE DETECTION =============================================== #
-
+            # region Final Frame Display
                 # Screen quadrants visualization
                 if calibration_stage == 6:
                     # screen_frame = np.zeros((self.SCREEN_HEIGHT, self.SCREEN_WIDTH, 3), dtype=np.uint8)
@@ -999,9 +1000,9 @@ class CameraTrack:
                         segment_rect_dimensions = (0, 0, self.SCREEN_WIDTH, self.SCREEN_HEIGHT)
                         
                     # cv2.imshow('Screen Quadrants', screen_frame)
-
+                # endregion Final Frame Display
                 # ============================================= GAZE MAPPING BY IRIS =============================================== #
-
+                # region Gaze Mapping by Iris Position
                 # Calculate iris position within eye rectangles (normalized 0-1)
 
                 # Right eye
@@ -1136,7 +1137,8 @@ class CameraTrack:
                         smoothed_x = int(np.mean([pos[0] for pos in iris_gaze_position_history]))
                         smoothed_y = int(np.mean([pos[1] for pos in iris_gaze_position_history]))
                         iris_gaze_position = (smoothed_x, smoothed_y)
-                
+                # endregion Gaze Mapping by Iris Position
+
                 # ============================================ GAZE POSITION DISPLAY =============================================== #
 
                 # Gaze position display
@@ -1221,7 +1223,7 @@ class CameraTrack:
     def get_screen_position(self):
         return self.weighted_screen_position
     
-
+# region Testing Code
 # if __name__ == "__main__":
 #     camera_track = CameraTrack()
 #     camera_track.load_calibration()
@@ -1255,3 +1257,4 @@ class CameraTrack:
 #                 break
 #     finally:
 #         camera_track.release()
+# endregion Testing Code

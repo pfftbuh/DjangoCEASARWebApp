@@ -7,7 +7,7 @@ import json
 import os
 import keyboard
 
-from camera_track_constants import GazeTrackerState
+from .camera_track_constants import GazeTrackerState
 
 class CameraTrack:
     def __init__(self, camera_index=0, screen_width=1920, screen_height=1080):
@@ -110,7 +110,7 @@ class CameraTrack:
                     return all_eye_points, all_eye_idx, frame
 
         # JSON Calibration Functions
-    def save_calibration(self,filename='calibration_data.json'):
+    def save_calibration(self):
         """Save calibration data to JSON file"""
         calibration_data = {
             'calibration_height_up': float(self.calibration_height_up),
@@ -134,55 +134,37 @@ class CameraTrack:
             'is_right_calibrated': self.is_right_calibrated
         }
         
-        try:
-            with open(filename, 'w') as f:
-                json.dump(calibration_data, f, indent=4)
-            print(f"Calibration data saved to {filename}")
-            return True
-        except Exception as e:
-            print(f"Error saving calibration: {e}")
-            return False
+        return calibration_data
         
-    def load_calibration(self,filename='calibration_data.json'):
+    def load_calibration(self,calibration_data):
         """Load calibration data from JSON file"""
-        if not os.path.exists(filename):
-            print(f"No calibration file found at {filename}")
-            return False
-        
-        try:
-            with open(filename, 'r') as f:
-                data = json.load(f)
+        if calibration_data:
             
-            self.calibration_height_up = data['calibration_height_up']
-            self.calibration_height_center = data['calibration_height_center']
-            self.calibration_height_down = data['calibration_height_down']
-            self.calibration_horizontal_left = data['calibration_horizontal_left']
-            self.calibration_horizontal_center = data['calibration_horizontal_center']
-            self.calibration_horizontal_right = data['calibration_horizontal_right']
-            self.calibration_offset_yaw = data['calibration_offset_yaw']
-            self.calibration_offset_pitch = data['calibration_offset_pitch']
-            self.up_threshold = data['up_threshold']
-            self.down_threshold = data['down_threshold']
-            self.left_threshold = data['left_threshold']
-            self.right_threshold = data['right_threshold']
-            self.distance_threshold = data['distance_threshold']
-            self.is_up_calibrated = data['is_up_calibrated']
-            self.is_center_calibrated = data['is_center_calibrated']
-            self.is_down_calibrated = data['is_down_calibrated']
-            self.is_left_calibrated = data['is_left_calibrated']
-            self.is_h_center_calibrated = data['is_h_center_calibrated']
-            self.is_right_calibrated = data['is_right_calibrated']
+            self.calibration_height_up = calibration_data['calibration_height_up']
+            self.calibration_height_center = calibration_data['calibration_height_center']
+            self.calibration_height_down = calibration_data['calibration_height_down']
+            self.calibration_horizontal_left = calibration_data['calibration_horizontal_left']
+            self.calibration_horizontal_center = calibration_data['calibration_horizontal_center']
+            self.calibration_horizontal_right = calibration_data['calibration_horizontal_right']
+            self.calibration_offset_yaw = calibration_data['calibration_offset_yaw']
+            self.calibration_offset_pitch = calibration_data['calibration_offset_pitch']
+            self.up_threshold = calibration_data['up_threshold']
+            self.down_threshold = calibration_data['down_threshold']
+            self.left_threshold = calibration_data['left_threshold']
+            self.right_threshold = calibration_data['right_threshold']
+            self.distance_threshold = calibration_data['distance_threshold']
+            self.is_up_calibrated = calibration_data['is_up_calibrated']
+            self.is_center_calibrated = calibration_data['is_center_calibrated']
+            self.is_down_calibrated = calibration_data['is_down_calibrated']
+            self.is_left_calibrated = calibration_data['is_left_calibrated']
+            self.is_h_center_calibrated = calibration_data['is_h_center_calibrated']
+            self.is_right_calibrated = calibration_data['is_right_calibrated']
             
             # Set calibration stage to tracking mode
             self.calibration_stage = 6
+        
             
-            print(f"Calibration data loaded from {filename}")
-            print(f"Vertical: Up={self.calibration_height_up:.2f}, Center={self.calibration_height_center:.2f}, Down={self.calibration_height_down:.2f}")
-            print(f"Horizontal: Left={self.calibration_horizontal_left:.3f}, Center={self.calibration_horizontal_center:.3f}, Right={self.calibration_horizontal_right:.3f}")
-            return True
-        except Exception as e:
-            print(f"Error loading calibration: {e}")
-            return False
+
         
     def update_calibration_stage(self, stage):
         if stage > 6:
@@ -628,11 +610,12 @@ class CameraTrack:
                 # Multi-stage calibration
                 if calibration_stage == -1:
                     cv2.putText(frame, "Press 'c' to start CALIBRATION for UP", (50, 100), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 255, 255), 3)
-                    calibration_offset_yaw = 180 - raw_yaw_deg
-                    calibration_offset_pitch = 180 - raw_pitch_deg
                     
                     
                 if calibration_stage == 0:  # Calibrate UP
+                    calibration_offset_yaw = 180 - raw_yaw_deg
+                    calibration_offset_pitch = 180 - raw_pitch_deg
+
                     if len(calibration_up_samples) < 60:
                         calibration_up_samples.append(smoothed_height)
                     if len(calibration_distance_samples) < 10:
@@ -642,6 +625,8 @@ class CameraTrack:
                         calibration_height_up, is_up_calibrated = self.calculate_mean(calibration_up_samples)
                 
                 elif calibration_stage == 1:  # Calibrate CENTER (vertical)
+                    
+
                     if len(calibration_center_samples) < 60:
                         calibration_center_samples.append(smoothed_height)
                     if len(calibration_distance_samples) < 20:
@@ -662,7 +647,9 @@ class CameraTrack:
                         # Calculate thresholds as midpoints
                         up_threshold = (calibration_height_up + calibration_height_center) / 2
                         down_threshold = (calibration_height_center + calibration_height_down) / 2
-                                          
+
+                            
+                
                 elif calibration_stage == 3:  # Calibrate LEFT
                     if len(calibration_left_samples) < 60:
                         calibration_left_samples.append(smoothed_horizontal)
@@ -703,28 +690,34 @@ class CameraTrack:
                     else:
                         distance_status = "GOOD"
 
-                    # Determine vertical gaze (up/down)
-                    # First check iris-based vertical gaze
                     if smoothed_height > up_threshold:
                         eye_vertical_gaze = "UP"
                         v_color = (0, 255, 0)
+                        eye_vertical_margin = smoothed_height - up_threshold
                     elif smoothed_height < down_threshold:
                         eye_vertical_gaze = "DOWN"
                         v_color = (0, 0, 255)
+                        eye_vertical_margin = down_threshold - smoothed_height
                     else:
                         eye_vertical_gaze = "CENTER"
                         v_color = (255, 255, 0)
+                        # Distance from nearest threshold
+                        eye_vertical_margin = min(abs(smoothed_height - up_threshold), abs(smoothed_height - down_threshold))
 
                     # Determine horizontal gaze (left/right)
                     if smoothed_horizontal < left_threshold:
                         eye_horizontal_gaze = "LEFT"
                         h_color = (255, 0, 255)  # Magenta
+                        eye_horizontal_margin = left_threshold - smoothed_horizontal
                     elif smoothed_horizontal > right_threshold:
                         eye_horizontal_gaze = "RIGHT"
                         h_color = (0, 165, 255)  # Orange
+                        eye_horizontal_margin = smoothed_horizontal - right_threshold
                     else:
                         eye_horizontal_gaze = "CENTER"
                         h_color = (255, 255, 0)
+                        # Distance from nearest threshold
+                        eye_horizontal_margin = min(abs(smoothed_horizontal - left_threshold), abs(smoothed_horizontal - right_threshold))
 
                     # Now also check face gaze position (smoothed)
                     face_vertical_gaze = "CENTER"
@@ -736,62 +729,142 @@ class CameraTrack:
                     third_w = self.SCREEN_WIDTH // 3
                     two_thirds_w = 2 * third_w
                     
-                    # Determine face-based vertical gaze
+                    # Determine face-based vertical gaze with margins
                     if face_gaze_position[1] < third_h:
                         face_vertical_gaze = "UP"
+                        face_vertical_margin = third_h - face_gaze_position[1]
                     elif face_gaze_position[1] > two_thirds_h:
                         face_vertical_gaze = "DOWN"
+                        face_vertical_margin = face_gaze_position[1] - two_thirds_h
+                    else:
+                        face_vertical_gaze = "CENTER"
+                        # Distance from nearest boundary
+                        face_vertical_margin = min(abs(face_gaze_position[1] - third_h), abs(face_gaze_position[1] - two_thirds_h))
                     
-                    # Determine face-based horizontal gaze
+                    # Determine face-based horizontal gaze with margins
                     if face_gaze_position[0] < third_w:
                         face_horizontal_gaze = "LEFT"
+                        face_horizontal_margin = third_w - face_gaze_position[0]
                     elif face_gaze_position[0] > two_thirds_w:
                         face_horizontal_gaze = "RIGHT"
+                        face_horizontal_margin = face_gaze_position[0] - two_thirds_w
+                    else:
+                        face_horizontal_gaze = "CENTER"
+                        # Distance from nearest boundary
+                        face_horizontal_margin = min(abs(face_gaze_position[0] - third_w), abs(face_gaze_position[0] - two_thirds_w))
                     
-                    # Combine iris and face gaze (give priority to agreement between both)
-                    # If both agree, use that direction. If they disagree, use iris as primary
-                    final_vertical_gaze = eye_vertical_gaze
-                    final_horizontal_gaze = eye_horizontal_gaze
+                    # Combine iris and face gaze based on margins
+                    # If both agree, use that direction
+                    # If they disagree and have similar margins, use a hybrid segment
+                    # If they disagree with different margins, use the one with bigger margin
                     
-                    # Override with face gaze if iris is CENTER but face detects direction
-                    if eye_vertical_gaze == "UP" and face_vertical_gaze == "CENTER":
-                        final_vertical_gaze = "UP"
+                    # Similarity threshold (if margins are within 20% of each other, consider them similar)
+                    similarity_threshold = 0.2
+                    
+                    # Vertical gaze decision
+                    if eye_vertical_gaze == face_vertical_gaze:
+                        # Both agree
+                        final_vertical_gaze = eye_vertical_gaze
+                        use_hybrid_vertical = False
+                    elif eye_vertical_gaze == "CENTER":
+                        # Eye is center, use face
+                        final_vertical_gaze = face_vertical_gaze
+                        use_hybrid_vertical = False
+                    elif face_vertical_gaze == "CENTER":
+                        # Face is center, use eye
+                        final_vertical_gaze = eye_vertical_gaze
+                        use_hybrid_vertical = False
+                    else:
+                        # They disagree (e.g., one says UP, other says DOWN)
+                        # Normalize margins to compare fairly
+                        # For eye: normalize by range between calibration points
+                        eye_v_range = calibration_height_up - calibration_height_down
+                        normalized_eye_v_margin = eye_vertical_margin / eye_v_range if eye_v_range > 0 else 0
                         
-                    elif eye_vertical_gaze == "UP" and face_vertical_gaze == "UP":
-                        final_vertical_gaze = "UP"
-
-                    elif eye_vertical_gaze == "DOWN" and face_vertical_gaze == "CENTER":
-                        final_vertical_gaze = "DOWN"
-
-                    elif eye_vertical_gaze == "DOWN" and face_vertical_gaze == "DOWN":
-                        final_vertical_gaze = "DOWN"
+                        # For face: normalize by screen height third
+                        normalized_face_v_margin = face_vertical_margin / third_h if third_h > 0 else 0
                         
-                    if eye_horizontal_gaze == "LEFT" and face_horizontal_gaze == "CENTER":
-                        final_horizontal_gaze = "LEFT"
+                        # Check if margins are similar
+                        if normalized_eye_v_margin > 0 and normalized_face_v_margin > 0:
+                            margin_ratio = min(normalized_eye_v_margin, normalized_face_v_margin) / max(normalized_eye_v_margin, normalized_face_v_margin)
+                        else:
+                            margin_ratio = 0
+                        
+                        if margin_ratio >= (1 - similarity_threshold):
+                            # Margins are similar, use hybrid segment
+                            final_vertical_gaze = "HYBRID"
+                            use_hybrid_vertical = True
+                            hybrid_vertical_combination = f"{eye_vertical_gaze}-{face_vertical_gaze}"
+                        else:
+                            # Use the one with bigger normalized margin
+                            if normalized_eye_v_margin > normalized_face_v_margin:
+                                final_vertical_gaze = eye_vertical_gaze
+                            else:
+                                final_vertical_gaze = face_vertical_gaze
+                            use_hybrid_vertical = False
+                    
+                    # Horizontal gaze decision
+                    if eye_horizontal_gaze == face_horizontal_gaze:
+                        # Both agree
+                        final_horizontal_gaze = eye_horizontal_gaze
+                        use_hybrid_horizontal = False
+                    elif eye_horizontal_gaze == "CENTER":
+                        # Eye is center, use face
+                        final_horizontal_gaze = face_horizontal_gaze
+                        use_hybrid_horizontal = False
+                    elif face_horizontal_gaze == "CENTER":
+                        # Face is center, use eye
+                        final_horizontal_gaze = eye_horizontal_gaze
+                        use_hybrid_horizontal = False
+                    else:
+                        # They disagree (e.g., one says LEFT, other says RIGHT)
+                        # Normalize margins to compare fairly
+                        # For eye: normalize by range between calibration points
+                        eye_h_range = calibration_horizontal_right - calibration_horizontal_left
+                        normalized_eye_h_margin = eye_horizontal_margin / eye_h_range if eye_h_range > 0 else 0
+                        
+                        # For face: normalize by screen width third
+                        normalized_face_h_margin = face_horizontal_margin / third_w if third_w > 0 else 0
+                        
+                        # Check if margins are similar
+                        if normalized_eye_h_margin > 0 and normalized_face_h_margin > 0:
+                            margin_ratio = min(normalized_eye_h_margin, normalized_face_h_margin) / max(normalized_eye_h_margin, normalized_face_h_margin)
+                        else:
+                            margin_ratio = 0
+                        
+                        if margin_ratio >= (1 - similarity_threshold):
+                            # Margins are similar, use hybrid segment
+                            final_horizontal_gaze = "HYBRID"
+                            use_hybrid_horizontal = True
+                            hybrid_horizontal_combination = f"{eye_horizontal_gaze}-{face_horizontal_gaze}"
+                        else:
+                            # Use the one with bigger normalized margin
+                            if normalized_eye_h_margin > normalized_face_h_margin:
+                                final_horizontal_gaze = eye_horizontal_gaze
+                            else:
+                                final_horizontal_gaze = face_horizontal_gaze
+                            use_hybrid_horizontal = False
 
-                    elif eye_horizontal_gaze == "LEFT" and face_horizontal_gaze == "LEFT":
-                        final_horizontal_gaze = "LEFT"
-
-                    elif eye_horizontal_gaze == "RIGHT" and face_horizontal_gaze == "CENTER":
-                        final_horizontal_gaze = "RIGHT"
-
-                    elif eye_horizontal_gaze == "RIGHT" and face_horizontal_gaze == "RIGHT":
-                        final_horizontal_gaze = "RIGHT"
-
-                    elif eye_horizontal_gaze == "RIGHT" and face_horizontal_gaze == "LEFT":
-                        final_horizontal_gaze = "CENTER"
-
-                    elif eye_horizontal_gaze == "LEFT" and face_horizontal_gaze == "RIGHT":
-                        final_horizontal_gaze = "CENTER"
-
-                    # Combined gaze direction
-                    if final_vertical_gaze == "CENTER" and final_horizontal_gaze == "CENTER":
+                    # Build combined gaze string
+                    if use_hybrid_vertical and use_hybrid_horizontal:
+                        # Both are hybrid - create extended region covering both possibilities
+                        combined_gaze = f"HYBRID_{hybrid_vertical_combination}_{hybrid_horizontal_combination}"
+                        combined_color = (255, 128, 0)  # Orange for hybrid
+                    elif use_hybrid_vertical:
+                        combined_gaze = f"HYBRID_{hybrid_vertical_combination} {final_horizontal_gaze}"
+                        combined_color = (255, 128, 0)
+                    elif use_hybrid_horizontal:
+                        combined_gaze = f"{final_vertical_gaze} HYBRID_{hybrid_horizontal_combination}"
+                        combined_color = (255, 128, 0)
+                    elif final_vertical_gaze == "CENTER" and final_horizontal_gaze == "CENTER":
                         combined_gaze = "CENTER"
                         combined_color = (255, 255, 255)
                     else:
                         combined_gaze = f"{final_vertical_gaze} {final_horizontal_gaze}"
                         combined_color = (0, 255, 255)
 
+                # endregion
+                # ============================================ CALIBRATION & GAZE DETECTION =============================================== #
                     # region Debug Info Display                
                     # # Display gaze directions
                     # cv2.putText(frame, combined_gaze, 
@@ -875,39 +948,54 @@ class CameraTrack:
                         # cv2.rectangle(screen_frame, (rect_dims[0], rect_dims[1]), 
                         #               (rect_dims[2], rect_dims[3]), color, -1)
 
-                    # Calculate thirds for dynamic scaling
+                    # Calculate dynamic thirds based on screen dimensions
+                    spacing = 100  # Space between segments
                     third_w = self.SCREEN_WIDTH // 3
                     two_thirds_w = 2 * third_w
                     third_h = self.SCREEN_HEIGHT // 3
                     two_thirds_h = 2 * third_h
                     
-                    if combined_gaze == "UP LEFT":
-                        segment_rect_dimensions = (0, 0, self.SCREEN_WIDTH // 2, third_h)
-                        draw_segment(segment_rect_dimensions, (0, 255, 0))
+                    # Determine which segment we're looking at based on combined_gaze
+                    # Default to full screen if combined_gaze not set
+                    if "HYBRID" in combined_gaze:
+                        # Handle hybrid segments - use expanded regions with spacing
+                        if "UP-DOWN" in combined_gaze or "DOWN-UP" in combined_gaze:
+                            if "LEFT" in combined_gaze:
+                                segment_rect_dimensions = (0, spacing // 2, self.SCREEN_WIDTH // 2 - spacing // 2, self.SCREEN_HEIGHT - spacing // 2)
+                            elif "RIGHT" in combined_gaze:
+                                segment_rect_dimensions = (self.SCREEN_WIDTH // 2 + spacing // 2, spacing // 2, self.SCREEN_WIDTH, self.SCREEN_HEIGHT - spacing // 2)
+                            else:
+                                segment_rect_dimensions = (third_w + spacing // 2, spacing // 2, two_thirds_w - spacing // 2, self.SCREEN_HEIGHT - spacing // 2)
+                        elif "LEFT-RIGHT" in combined_gaze or "RIGHT-LEFT" in combined_gaze:
+                            if "UP" in combined_gaze:
+                                segment_rect_dimensions = (spacing // 2, 0, self.SCREEN_WIDTH - spacing // 2, third_h - spacing // 2)
+                            elif "DOWN" in combined_gaze:
+                                segment_rect_dimensions = (spacing // 2, two_thirds_h + spacing // 2, self.SCREEN_WIDTH - spacing // 2, self.SCREEN_HEIGHT)
+                            else:
+                                segment_rect_dimensions = (spacing // 2, third_h + spacing // 2, self.SCREEN_WIDTH - spacing // 2, two_thirds_h - spacing // 2)
+                        else:
+                            segment_rect_dimensions = (spacing // 2, spacing // 2, self.SCREEN_WIDTH - spacing // 2, self.SCREEN_HEIGHT - spacing // 2)
+                    elif combined_gaze == "UP LEFT":
+                        segment_rect_dimensions = (0, 0, self.SCREEN_WIDTH // 2 - spacing // 2, third_h - spacing // 2)
                     elif combined_gaze == "UP RIGHT":
-                        segment_rect_dimensions = (self.SCREEN_WIDTH // 2, 0, self.SCREEN_WIDTH, third_h)
-                        draw_segment(segment_rect_dimensions, (0, 255, 0))
+                        segment_rect_dimensions = (self.SCREEN_WIDTH // 2 + spacing // 2, 0, self.SCREEN_WIDTH, third_h - spacing // 2)
                     elif combined_gaze == "DOWN LEFT":
-                        segment_rect_dimensions = (0, two_thirds_h, self.SCREEN_WIDTH // 2, self.SCREEN_HEIGHT)
-                        draw_segment(segment_rect_dimensions, (0, 0, 255))
+                        segment_rect_dimensions = (0, two_thirds_h + spacing // 2, self.SCREEN_WIDTH // 2 - spacing // 2, self.SCREEN_HEIGHT)
                     elif combined_gaze == "DOWN RIGHT":
-                        segment_rect_dimensions = (self.SCREEN_WIDTH // 2, two_thirds_h, self.SCREEN_WIDTH, self.SCREEN_HEIGHT)
-                        draw_segment(segment_rect_dimensions, (0, 0, 255))
+                        segment_rect_dimensions = (self.SCREEN_WIDTH // 2 + spacing // 2, two_thirds_h + spacing // 2, self.SCREEN_WIDTH, self.SCREEN_HEIGHT)
                     elif combined_gaze == "UP CENTER":
-                        segment_rect_dimensions = (third_w, 0, two_thirds_w, third_h)
-                        draw_segment(segment_rect_dimensions, (0, 255, 128))
+                        segment_rect_dimensions = (third_w + spacing // 2, 0, two_thirds_w - spacing // 2, third_h - spacing // 2)
                     elif combined_gaze == "DOWN CENTER":
-                        segment_rect_dimensions = (third_w, two_thirds_h, two_thirds_w, self.SCREEN_HEIGHT)
-                        draw_segment(segment_rect_dimensions, (0, 128, 255))
+                        segment_rect_dimensions = (third_w + spacing // 2, two_thirds_h + spacing // 2, two_thirds_w - spacing // 2, self.SCREEN_HEIGHT)
                     elif combined_gaze == "CENTER LEFT":
-                        segment_rect_dimensions = (0, third_h, self.SCREEN_WIDTH // 2, two_thirds_h)
-                        draw_segment(segment_rect_dimensions, (255, 128, 0))
+                        segment_rect_dimensions = (0, third_h + spacing // 2, self.SCREEN_WIDTH // 2 - spacing // 2, two_thirds_h - spacing // 2)
                     elif combined_gaze == "CENTER RIGHT":
-                        segment_rect_dimensions = (self.SCREEN_WIDTH // 2, third_h, self.SCREEN_WIDTH, two_thirds_h)
-                        draw_segment(segment_rect_dimensions, (128, 0, 255))
+                        segment_rect_dimensions = (self.SCREEN_WIDTH // 2 + spacing // 2, third_h + spacing // 2, self.SCREEN_WIDTH, two_thirds_h - spacing // 2)
                     elif combined_gaze == "CENTER":
-                        segment_rect_dimensions = (third_w, third_h, two_thirds_w, two_thirds_h)
-                        draw_segment(segment_rect_dimensions, (255, 255, 255))
+                        segment_rect_dimensions = (third_w + spacing // 2, third_h + spacing // 2, two_thirds_w - spacing // 2, two_thirds_h - spacing // 2)
+                    else:
+                        # Default to full screen if gaze direction is unknown
+                        segment_rect_dimensions = (0, 0, self.SCREEN_WIDTH, self.SCREEN_HEIGHT)
                         
                     # cv2.imshow('Screen Quadrants', screen_frame)
 
@@ -934,16 +1022,40 @@ class CameraTrack:
                 # Only map gaze position if calibration is complete
                 if calibration_stage == 6:
                     # Calculate dynamic thirds based on screen dimensions
+                    spacing = 100  # Space between segments
                     third_w = self.SCREEN_WIDTH // 3
                     two_thirds_w = 2 * third_w
                     third_h = self.SCREEN_HEIGHT // 3
                     two_thirds_h = 2 * third_h
                     
+                    # Determine which segment we're looking at based on combined_gaze
+                    # Default to full screen if combined_gaze not set
+                    if combined_gaze == "UP LEFT":
+                        segment_rect_dimensions = (0, 0, self.SCREEN_WIDTH // 2 - spacing // 2, third_h - spacing // 2)
+                    elif combined_gaze == "UP RIGHT":
+                        segment_rect_dimensions = (self.SCREEN_WIDTH // 2 + spacing // 2, 0, self.SCREEN_WIDTH, third_h - spacing // 2)
+                    elif combined_gaze == "DOWN LEFT":
+                        segment_rect_dimensions = (0, two_thirds_h + spacing // 2, self.SCREEN_WIDTH // 2 - spacing // 2, self.SCREEN_HEIGHT)
+                    elif combined_gaze == "DOWN RIGHT":
+                        segment_rect_dimensions = (self.SCREEN_WIDTH // 2 + spacing // 2, two_thirds_h + spacing // 2, self.SCREEN_WIDTH, self.SCREEN_HEIGHT)
+                    elif combined_gaze == "UP CENTER":
+                        segment_rect_dimensions = (third_w + spacing // 2, 0, two_thirds_w - spacing // 2, third_h - spacing // 2)
+                    elif combined_gaze == "DOWN CENTER":
+                        segment_rect_dimensions = (third_w + spacing // 2, two_thirds_h + spacing // 2, two_thirds_w - spacing // 2, self.SCREEN_HEIGHT)
+                    elif combined_gaze == "CENTER LEFT":
+                        segment_rect_dimensions = (0, third_h + spacing // 2, self.SCREEN_WIDTH // 2 - spacing // 2, two_thirds_h - spacing // 2)
+                    elif combined_gaze == "CENTER RIGHT":
+                        segment_rect_dimensions = (self.SCREEN_WIDTH // 2 + spacing // 2, third_h + spacing // 2, self.SCREEN_WIDTH, two_thirds_h - spacing // 2)
+                    elif combined_gaze == "CENTER":
+                        segment_rect_dimensions = (third_w + spacing // 2, third_h + spacing // 2, two_thirds_w - spacing // 2, two_thirds_h - spacing // 2)
+                    else:
+                        # Default to full screen if gaze direction is unknown
+                        segment_rect_dimensions = (0, 0, self.SCREEN_WIDTH, self.SCREEN_HEIGHT)
+                    
                     # Map normalized iris position to calibrated screen coordinates
                     # Horizontal mapping (left to right)
                     if avg_iris_x_norm < left_threshold:
                         # Looking left
-                        # Map from [calibration_horizontal_left to left_threshold] -> [0 to third_w]
                         h_range = left_threshold - calibration_horizontal_left
                         if h_range > 0:
                             norm_in_range = (avg_iris_x_norm - calibration_horizontal_left) / h_range
@@ -952,7 +1064,6 @@ class CameraTrack:
                             gaze_x = third_w // 2
                     elif avg_iris_x_norm > right_threshold:
                         # Looking right
-                        # Map from [right_threshold to calibration_horizontal_right] -> [two_thirds_w to SCREEN_WIDTH]
                         h_range = calibration_horizontal_right - right_threshold
                         if h_range > 0:
                             norm_in_range = (avg_iris_x_norm - right_threshold) / h_range
@@ -961,7 +1072,6 @@ class CameraTrack:
                             gaze_x = two_thirds_w + third_w // 2
                     else:
                         # Looking center
-                        # Map from [left_threshold to right_threshold] -> [third_w to two_thirds_w]
                         h_range = right_threshold - left_threshold
                         if h_range > 0:
                             norm_in_range = (avg_iris_x_norm - left_threshold) / h_range
@@ -972,7 +1082,6 @@ class CameraTrack:
                     # Vertical mapping (up to down)
                     if avg_rect_height > up_threshold:
                         # Looking up
-                        # Map from [up_threshold to calibration_height_up] -> [0 to third_h]
                         v_range = calibration_height_up - up_threshold
                         if v_range > 0:
                             norm_in_range = (avg_rect_height - up_threshold) / v_range
@@ -981,7 +1090,6 @@ class CameraTrack:
                             gaze_y = third_h // 2
                     elif avg_rect_height < down_threshold:
                         # Looking down
-                        # Map from [calibration_height_down to down_threshold] -> [two_thirds_h to SCREEN_HEIGHT]
                         v_range = down_threshold - calibration_height_down
                         if v_range > 0:
                             norm_in_range = (avg_rect_height - calibration_height_down) / v_range
@@ -990,7 +1098,6 @@ class CameraTrack:
                             gaze_y = two_thirds_h + third_h // 2
                     else:
                         # Looking center
-                        # Map from [down_threshold to up_threshold] -> [third_h to two_thirds_h]
                         v_range = up_threshold - down_threshold
                         if v_range > 0:
                             norm_in_range = (avg_rect_height - down_threshold) / v_range
@@ -999,11 +1106,11 @@ class CameraTrack:
                             gaze_y = self.SCREEN_HEIGHT // 2
 
                     # Clamp to screen bounds
-                    gaze_x = max(0, min(self.SCREEN_WIDTH + (self.SCREEN_HEIGHT * 0.25), gaze_x))
-                    gaze_y = max(0, min(self.SCREEN_HEIGHT + (self.SCREEN_WIDTH * 0.25), gaze_y))
+                    gaze_x = max(0, min(self.SCREEN_WIDTH, gaze_x))
+                    gaze_y = max(0, min(self.SCREEN_HEIGHT, gaze_y))
 
-                    rect = segment_rect_dimensions
-                    x1, y1, x2, y2 = rect
+                    # Now map the gaze position to the specific segment
+                    x1, y1, x2, y2 = segment_rect_dimensions
                     seg_w = x2 - x1
                     seg_h = y2 - y1
 
@@ -1011,7 +1118,7 @@ class CameraTrack:
                     norm_x = gaze_x / self.SCREEN_WIDTH
                     norm_y = gaze_y / self.SCREEN_HEIGHT
 
-                    # Map normalized gaze to segment
+                    # Map normalized gaze to segment bounds
                     mapped_x = int(x1 + norm_x * seg_w)
                     mapped_y = int(y1 + norm_y * seg_h)
 
@@ -1023,26 +1130,12 @@ class CameraTrack:
                     iris_gaze_position = (mapped_x, mapped_y)
                     iris_gaze_position_history.append(iris_gaze_position)
 
-                    if len(iris_gaze_position_history) > 0 :
+                    if len(iris_gaze_position_history) > 0:
                         # Smooth gaze position
-                        smoothed_x = int(np.mean([pos[0] for pos in iris_gaze_position_history] + [iris_gaze_position[0]]))
-                        smoothed_y = int(np.mean([pos[1] for pos in iris_gaze_position_history] + [iris_gaze_position[1]]))
+                        smoothed_x = int(np.mean([pos[0] for pos in iris_gaze_position_history]))
+                        smoothed_y = int(np.mean([pos[1] for pos in iris_gaze_position_history]))
                         iris_gaze_position = (smoothed_x, smoothed_y)
-                    
-                    # Debugging Purposes: draw iris-based gaze position
-                    # region Iris Gaze Visualization
-                    # Display normalized iris positions on eye frame
-                    cv2.putText(eye_frame, f"Iris X: {avg_iris_x_norm:.2f}", 
-                            (10, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1)
-                    cv2.putText(eye_frame, f"Iris Y: {avg_iris_y_norm:.2f}", 
-                            (10, 40), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1)
-                    cv2.putText(eye_frame, f"Gaze: ({gaze_x}, {gaze_y})", 
-                            (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 0), 1)
-                    # endregion Iris Gaze Visualization
-                    
                 
-                # ============================================= GAZE MAPPING BY IRIS =============================================== #
-
                 # ============================================ GAZE POSITION DISPLAY =============================================== #
 
                 # Gaze position display
@@ -1063,8 +1156,8 @@ class CameraTrack:
                     
                     # endregion Gaze Visualization
 
-                    face_weight = 0.30 # 30% face-based tracking
-                    eye_weight = 0.70 # 70% eye-based tracking
+                    face_weight = 0.50 # 50% face-based tracking
+                    eye_weight = 0.50 # 50% eye-based tracking
                     
                     weighted_gaze_x = int((face_gaze_position[0] * face_weight + iris_gaze_position[0] * eye_weight))
                     weighted_gaze_y = int((face_gaze_position[1] * face_weight + iris_gaze_position[1] * eye_weight))
@@ -1087,17 +1180,13 @@ class CameraTrack:
                     # cv2.imshow('Gaze Position', gaze_frame)
                     # endregion Weighted Gaze Visualization
 
+                    # With this (normalized version):
                     weighted_gaze_x_norm = weighted_gaze_x / self.SCREEN_WIDTH
                     weighted_gaze_y_norm = weighted_gaze_y / self.SCREEN_HEIGHT
-
                     self.weighted_screen_position = (weighted_gaze_x_norm, weighted_gaze_y_norm)
 
-            # ============================================ GAZE POSITION DISPLAY =============================================== #
-            
-                
             # ============================================ FINAL VARIABLE UPDATES =============================================== #
                 
-                self.calibration_stage = calibration_stage
                 self.calibration_offset_yaw = calibration_offset_yaw
                 self.calibration_offset_pitch = calibration_offset_pitch
                 self.calibration_height_up = calibration_height_up
@@ -1132,36 +1221,36 @@ class CameraTrack:
         return self.weighted_screen_position
     
 
-if __name__ == "__main__":
-    camera_track = CameraTrack()
-    camera_track.load_calibration()
-    try:
-        while True:
-            frame = camera_track.get_frame()
-            # Convert byte data back to image for display
-            nparr = np.frombuffer(frame, np.uint8)
-            frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-            cv2.imshow('Camera Feed', frame)
+# if __name__ == "__main__":
+#     camera_track = CameraTrack()
+#     camera_track.load_calibration()
+#     try:
+#         while True:
+#             frame = camera_track.get_frame()
+#             # Convert byte data back to image for display
+#             nparr = np.frombuffer(frame, np.uint8)
+#             frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+#             cv2.imshow('Camera Feed', frame)
             
-            screen_frame = np.zeros((1080, 1920, 3), dtype=np.uint8)
-            screen_pos = camera_track.get_screen_position()
-            gaze_x = int(screen_pos[0] * 1920)
-            gaze_y = int(screen_pos[1] * 1080)
-            # 80px circle outline for weighted gaze 
-            cv2.circle(screen_frame, (gaze_x, gaze_y), 100, (0, 255, 255), 3)
+#             screen_frame = np.zeros((1080, 1920, 3), dtype=np.uint8)
+#             screen_pos = camera_track.get_screen_position()
+#             gaze_x = int(screen_pos[0] * 1920)
+#             gaze_y = int(screen_pos[1] * 1080)
+#             # 80px circle outline for weighted gaze 
+#             cv2.circle(screen_frame, (gaze_x, gaze_y), 100, (0, 255, 255), 3)
                 
-            # Peripheral circles for reference
-            cv2.circle(screen_frame, (gaze_x, gaze_y), 200, (255, 255, 255), 2)
+#             # Peripheral circles for reference
+#             cv2.circle(screen_frame, (gaze_x, gaze_y), 200, (255, 255, 255), 2)
 
-            cv2.imshow('Weighted Gaze Position', screen_frame)
+#             cv2.imshow('Weighted Gaze Position', screen_frame)
             
-            if cv2.waitKey(1) & 0xFF == ord('c'):
-                camera_track.update_calibration_stage(camera_track.calibration_stage + 1)
-            if cv2.waitKey(1) & 0xFF == ord('s'):
-                camera_track.save_calibration()
-            if cv2.waitKey(1) & 0xFF == ord('l'):
-                camera_track.load_calibration()
-            if cv2.waitKey(1) & 0xFF == ord('q'):
-                break
-    finally:
-        camera_track.release()
+#             if cv2.waitKey(1) & 0xFF == ord('c'):
+#                 camera_track.update_calibration_stage(camera_track.calibration_stage + 1)
+#             if cv2.waitKey(1) & 0xFF == ord('s'):
+#                 camera_track.save_calibration()
+#             if cv2.waitKey(1) & 0xFF == ord('l'):
+#                 camera_track.load_calibration()
+#             if cv2.waitKey(1) & 0xFF == ord('q'):
+#                 break
+#     finally:
+#         camera_track.release()

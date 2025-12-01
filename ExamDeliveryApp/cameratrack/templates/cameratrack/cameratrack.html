@@ -5,26 +5,103 @@
 <div style="text-align: center;">
     <h1>Camera App</h1>
     <p>Welcome to the app.</p>
-    <img src="{% url 'video' %}" width="640" height="480" alt="Live Camera Feed">
+    <img id="camera-feed" src="{% url 'video' %}" width="640" height="480" alt="Live Camera Feed" style="border: 5px solid red;">
 
     <div style="margin-top: 20px;">
         <p><strong>Eye Midpoint:</strong></p>
         <p>X: <span id="mid-x">-</span>, Y: <span id="mid-y">-</span></p>
     </div>
+    <div style="margin-top: 20px;">
+        <p>Press the 'C' key to update calibration.</p>
+    </div>
+    <div style="margin-top: 20px;">
+        <p><span id="calibration-stage">Calibration status will appear here.</span></p>
+        <p><span id="calibration-status">Status: Not Calibrated, </span></p>
+    </div>
 </div>
 
+<!-- Circle overlay -->
+<div id="gaze-circle" style="
+    position: fixed;
+    width: 250px;
+    height: 250px;
+    border: 3px solid red;
+    border-radius: 50%;
+    pointer-events: none;
+    display: none;
+    transform: translate(-50%, -50%);
+    z-index: 9999;
+"></div>
+
 <script>
-    function fetchEyeMidpoint() {
-        fetch("{% url 'eye-midpoint' %}")
+    const screenWidth = window.outerWidth;
+    const screenHeight = window.outerHeight;
+    const gazeCircle = document.getElementById('gaze-circle');
+    
+    function fetchGazePoint() {
+        fetch("{% url 'get-screen-position' %}")
             .then(response => response.json())
             .then(data => {
-                document.getElementById('mid-x').textContent = data.mid_x;
-                document.getElementById('mid-y').textContent = data.mid_y;
+                document.getElementById('mid-x').textContent = data.mid_x.toFixed(2);
+                document.getElementById('mid-y').textContent = data.mid_y.toFixed(2);
+                
+                // Data is already normalized (0-1), just scale to screen dimensions
+                const scaledX = data.mid_x * screenWidth;
+                const scaledY = data.mid_y * screenHeight;
+                
+                // Clamp to screen bounds
+                const clampedX = Math.max(0, Math.min(scaledX, screenWidth));
+                const clampedY = Math.max(0, Math.min(scaledY, screenHeight));
+                
+                // Update circle position
+                gazeCircle.style.left = clampedX + 'px';
+                gazeCircle.style.top = clampedY + 'px';
+                gazeCircle.style.display = 'block';
             })
             .catch(error => console.error('Error fetching eye midpoint:', error));
     }
 
-    // Fetch eye midpoint every 128ms
-    setInterval(fetchEyeMidpoint, 128);
+    // Fetch eye midpoint every 200ms
+    setInterval(fetchGazePoint, 200);
+
+    function updateCalibrationStatus() {
+        fetch("{% url 'update-calibration-status' %}", {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}',
+            },
+        }).then(response => response.json())
+          .then(data => {
+              document.getElementById('calibration-status').textContent = "Status: "+ data.status + ", ";
+              
+              // Update border color based on status
+              const cameraFeed = document.getElementById('camera-feed');
+              if (data.status === 'true' || data.status === true) {
+                  cameraFeed.style.borderColor = 'green';
+              } else {
+                  cameraFeed.style.borderColor = 'red';
+              }
+          })
+    }
+    // Update calibration status every 200ms
+    setInterval(updateCalibrationStatus, 200);
+
+    document.addEventListener('keydown', function(event) {
+        if (event.key === 'c' || event.key === 'C') {
+            fetch("{% url 'update-calibration' %}", {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}',
+                },
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('Calibration updated:', data);
+                document.getElementById('calibration-stage').textContent = 
+                    `Calibration Stage: ${data.calibration_stage}, Next Point: ${data.next_point}`;
+            })
+            .catch(error => console.error('Error updating calibration:', error));
+        }
+    });
 </script>
 {% endblock %}

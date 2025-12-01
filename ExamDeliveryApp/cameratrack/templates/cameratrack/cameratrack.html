@@ -34,10 +34,37 @@
 "></div>
 
 <script>
+
     const screenWidth = window.outerWidth;
     const screenHeight = window.outerHeight;
     const gazeCircle = document.getElementById('gaze-circle');
-    
+    const calibrationStage = "";
+    let calibrationStatusInterval; // Store interval ID
+
+    document.addEventListener('keydown', function(event) {
+        if (event.key === 'c' || event.key === 'C') {
+            fetch("{% url 'update-calibration' %}", {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}',
+                },
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('Calibration updated:', data);
+                document.getElementById('calibration-stage').textContent = 
+                    `Calibration Stage: ${data.calibration_stage}, Next Point: ${data.next_point}`;
+                
+                // Stop calibration status updates when stage 6 is reached
+                if (data.calibration_stage === 6 && calibrationStatusInterval) {
+                    clearInterval(calibrationStatusInterval);
+                    console.log('Calibration complete - stopped status updates');
+                }
+            })
+            .catch(error => console.error('Error updating calibration:', error));
+        }
+    });
+
     function fetchGazePoint() {
         fetch("{% url 'get-screen-position' %}")
             .then(response => response.json())
@@ -71,37 +98,21 @@
                 'X-CSRFToken': '{{ csrf_token }}',
             },
         }).then(response => response.json())
-          .then(data => {
-              document.getElementById('calibration-status').textContent = "Status: "+ data.status + ", ";
-              
-              // Update border color based on status
-              const cameraFeed = document.getElementById('camera-feed');
-              if (data.status === 'true' || data.status === true) {
-                  cameraFeed.style.borderColor = 'green';
-              } else {
-                  cameraFeed.style.borderColor = 'red';
-              }
-          })
+        .then(data => {
+            document.getElementById('calibration-status').textContent = "Status: "+ data.status + ", ";
+            
+            // Update border color based on status
+            const cameraFeed = document.getElementById('camera-feed');
+            if (data.status === 'true' || data.status === true) {
+                cameraFeed.style.borderColor = 'green';
+            } else {
+                cameraFeed.style.borderColor = 'red';
+            }
+        })
     }
-    // Update calibration status every 200ms
-    setInterval(updateCalibrationStatus, 200);
+    // Update calibration status every 200ms and store the interval ID
+    calibrationStatusInterval = setInterval(updateCalibrationStatus, 200);
 
-    document.addEventListener('keydown', function(event) {
-        if (event.key === 'c' || event.key === 'C') {
-            fetch("{% url 'update-calibration' %}", {
-                method: 'POST',
-                headers: {
-                    'X-CSRFToken': '{{ csrf_token }}',
-                },
-            })
-            .then(response => response.json())
-            .then(data => {
-                console.log('Calibration updated:', data);
-                document.getElementById('calibration-stage').textContent = 
-                    `Calibration Stage: ${data.calibration_stage}, Next Point: ${data.next_point}`;
-            })
-            .catch(error => console.error('Error updating calibration:', error));
-        }
-    });
+    
 </script>
 {% endblock %}

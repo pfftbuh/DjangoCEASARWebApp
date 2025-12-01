@@ -22,11 +22,11 @@
                 </button>
                 <div class="collapse navbar-collapse" id="navbarNav">
                     <ul class="navbar-nav">
-                        <li class="nav-item"><a class="nav-link" href="/student">Dashboard</a></li>
-                        <li class="nav-item"><a class="nav-link" href="/student/profile">Profile</a></li>
-                        <li class="nav-item"><a class="nav-link" href="/student/exams">Exams</a></li>
-                        <li class="nav-item"><a class="nav-link" href="/student/grades">Grades</a></li>
-                        <li class="nav-item"><a class="nav-link" href="/student/help">Help</a></li>
+                        <li class="nav-item"><a class="nav-link" href="{% url 'student-home' %}">Dashboard</a></li>
+                        <li class="nav-item"><a class="nav-link" href="{% url 'student-profile' %}">Profile</a></li>
+                        <li class="nav-item"><a class="nav-link" href="{% url 'student-exams' %}">Exams</a></li>
+                        <li class="nav-item"><a class="nav-link" href="{% url 'student-grades' %}">Grades</a></li>
+                        <li class="nav-item"><a class="nav-link" href="{% url 'student-help' %}">Help</a></li>
                         {% if user.is_authenticated %}
                             <li class="nav-item">
                                 <form action="{% url 'site-logout' %}" method="post" class="d-inline">

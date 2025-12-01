@@ -961,20 +961,21 @@ class CameraTrack:
                         # Handle hybrid segments - use expanded regions with spacing
                         if "UP-DOWN" in combined_gaze or "DOWN-UP" in combined_gaze:
                             if "LEFT" in combined_gaze:
-                                segment_rect_dimensions = (0, spacing // 2, self.SCREEN_WIDTH // 2 - spacing // 2, self.SCREEN_HEIGHT - spacing // 2)
+                                segment_rect_dimensions = (0, self.SCREEN_HEIGHT // 4, self.SCREEN_WIDTH // 2 - spacing // 2, 3 * self.SCREEN_HEIGHT // 4)
                             elif "RIGHT" in combined_gaze:
-                                segment_rect_dimensions = (self.SCREEN_WIDTH // 2 + spacing // 2, spacing // 2, self.SCREEN_WIDTH, self.SCREEN_HEIGHT - spacing // 2)
+                                segment_rect_dimensions = (self.SCREEN_WIDTH // 2 + spacing // 2, self.SCREEN_HEIGHT // 4, self.SCREEN_WIDTH, 3 * self.SCREEN_HEIGHT // 4)
                             else:
-                                segment_rect_dimensions = (third_w + spacing // 2, spacing // 2, two_thirds_w - spacing // 2, self.SCREEN_HEIGHT - spacing // 2)
+                                segment_rect_dimensions = (third_w + spacing // 2, self.SCREEN_HEIGHT // 4, two_thirds_w - spacing // 2, 3 * self.SCREEN_HEIGHT // 4)
                         elif "LEFT-RIGHT" in combined_gaze or "RIGHT-LEFT" in combined_gaze:
                             if "UP" in combined_gaze:
-                                segment_rect_dimensions = (spacing // 2, 0, self.SCREEN_WIDTH - spacing // 2, third_h - spacing // 2)
+                                segment_rect_dimensions = (self.SCREEN_WIDTH // 4, 0, 3 * self.SCREEN_WIDTH // 4, third_h - spacing // 2)
                             elif "DOWN" in combined_gaze:
-                                segment_rect_dimensions = (spacing // 2, two_thirds_h + spacing // 2, self.SCREEN_WIDTH - spacing // 2, self.SCREEN_HEIGHT)
+                                segment_rect_dimensions = (self.SCREEN_WIDTH // 4, two_thirds_h + spacing // 2, 3 * self.SCREEN_WIDTH // 4, self.SCREEN_HEIGHT)
                             else:
-                                segment_rect_dimensions = (spacing // 2, third_h + spacing // 2, self.SCREEN_WIDTH - spacing // 2, two_thirds_h - spacing // 2)
+                                segment_rect_dimensions = (self.SCREEN_WIDTH // 4, third_h + spacing // 2, 3 * self.SCREEN_WIDTH // 4, two_thirds_h - spacing // 2)
                         else:
-                            segment_rect_dimensions = (spacing // 2, spacing // 2, self.SCREEN_WIDTH - spacing // 2, self.SCREEN_HEIGHT - spacing // 2)
+                            segment_rect_dimensions = (self.SCREEN_WIDTH // 4, self.SCREEN_HEIGHT // 4, 3 * self.SCREEN_WIDTH // 4, 3 * self.SCREEN_HEIGHT // 4)
+                    
                     elif combined_gaze == "UP LEFT":
                         segment_rect_dimensions = (0, 0, self.SCREEN_WIDTH // 2 - spacing // 2, third_h - spacing // 2)
                     elif combined_gaze == "UP RIGHT":

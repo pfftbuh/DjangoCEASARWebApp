@@ -30,6 +30,7 @@ class Profile(models.Model):
 class StudentProfile(models.Model):
     profile = models.OneToOneField(Profile, on_delete=models.CASCADE)
     class_designation = models.CharField(max_length=10, default="0701")
+    camera_calibration_data = models.JSONField(default=dict, blank=True)
 
     def __str__(self):
         return f"{self.profile.username} - {self.class_designation}"
@@ -87,6 +88,21 @@ class Exams(models.Model):
         verbose_name = "Exam"
         verbose_name_plural = "Exams"
 
+class ActiveExamSessions(models.Model):
+    exam = models.ForeignKey(Exams, on_delete=models.CASCADE)
+    student = models.ForeignKey(StudentProfile, on_delete=models.CASCADE)
+    start_time = models.DateTimeField(auto_now_add=True)
+    end_time = models.DateTimeField(null=True, blank=True)
+    is_active = models.BooleanField(default=True)
+
+    def __str__(self):
+        return f"{self.student.profile.username} - {self.exam.title} - {'Active' if self.is_active else 'Completed'}"
+    
+    class Meta:
+        db_table = "Active Exam Sessions"
+        verbose_name = "Active Exam Session"
+        verbose_name_plural = "Active Exam Sessions"
+
 class ExamSubmissions(models.Model):
     exam = models.IntegerField(default=1)
     attempt_number = models.IntegerField(default=1)
@@ -98,7 +114,7 @@ class ExamSubmissions(models.Model):
     submission_date = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"{self.student.profile.username} - {self.exam.title} - {self.score}"
+        return f"{self.student.profile.username} - {self.exam} - {self.score}"
     
     class Meta:
         db_table = "Exam Submissions"

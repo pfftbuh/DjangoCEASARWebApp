@@ -1,0 +1,93 @@
+{% extends 'studentside/base.html' %}
+
+{% block title %}Available Exams - MakiTEST{% endblock %}
+
+{% block header %}Available Exams{% endblock %}
+
+{% block content %}
+<style>
+    .green-score-circle {
+        display: inline-block;
+        border: 2px solid #65b565ff;
+        background-color: #65b565ff;
+        border-radius: 50px;
+        padding: 10px 15px;
+        text-align: center;
+        min-width: 60px;
+        min-height: 30px;
+        line-height: 1.2;
+    }
+    .yellow-score-circle {
+        display: inline-block;
+        border: 2px solid #ffdd57ff;
+        background-color: #ffdd57ff;
+        border-radius: 50px;
+        padding: 10px 15px;
+        text-align: center;
+        min-width: 60px;
+        min-height: 30px;
+        line-height: 1.2;
+    }   
+    .red-score-circle {
+        display: inline-block;
+        border: 2px solid #ff4c4cff;
+        background-color: #ff4c4cff;
+        border-radius: 50px;
+        padding: 10px 15px;
+        text-align: center;
+        min-width: 60px;
+        min-height: 30px;
+        line-height: 1.2;
+    }
+    .yellow-green-score-circle {
+        display: inline-block;
+        border: 2px solid #d4ed91ff;
+        background-color: #d4ed91ff;
+        border-radius: 50px;
+        padding: 10px 15px;
+        text-align: center;
+        min-width: 60px;
+        min-height: 30px;
+        line-height: 1.2;
+    }
+</style>
+
+<h3>Your Grades</h3>
+<!--- Example of a grade card -->
+<!-- This would be inside a loop iterating over the student's exams and their scores -->
+<div class="card mb-3">
+    <div class="card-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <!-- href will be 'student-view-results' exam.id  -->
+                <h4 class="card-title mb-0"><a href="#" class="text-decoration-none text-dark">Test Exam</a></h4>
+                <div class="border-bottom my-2"></div>
+                <div class="form-group mt-3">
+                <p class="card-text mb-2">
+                    <strong>Due Date:</strong> June 30, 2024, 11:59 PM<br>
+                    <strong>Exam by:</strong> Prof. Smith
+                </p>
+                </div>
+            </div>
+            {% if score >= 90 %}
+            <span class="green-score-circle">
+                <strong>{{ score }} / 100</strong>
+            </span>
+            {% elif score >= 80 %}
+            <span class="yellow-green-score-circle">
+                <strong>{{ score }} / 100</strong>
+            </span>
+            {% elif score >= 75 %}
+            <span class="yellow-score-circle">
+                <strong>{{ score }} / 100</strong>
+            </span>
+            {% else %}
+            <span class="red-score-circle">
+                <strong>{{ score }} / 100</strong>
+            </span>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+{% endblock content %}

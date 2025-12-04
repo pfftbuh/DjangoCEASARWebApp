@@ -19,8 +19,4 @@ urlpatterns = [
     path('api/question-banks/', view=views.get_question_banks_api, name='api-question-banks'),
     path('api/update/specialization', view=views.update_specialization, name='api-update-specialization'),
 
-    ## FOR TESTING PURPOSES ONLY
-    path('violation/check/', view=views.violation_check, name='violation-check'),
-    path('exam/start/debug/', view=views.teacher_start_exam, name='teacher-start-exam'),
-    path('exam/start/debug/submit', view=views.teacher_start_exam, name='teacher-submit-exam'),
 ]

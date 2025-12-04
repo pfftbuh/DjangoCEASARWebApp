@@ -8,14 +8,22 @@
 
 {% block content %}
 <div class="row"  data-exam-id="{{ exam.id }}">
-    <div class="col-md-10 offset-md-1">
+    <div class="col-md-8 offset-md-2">
         <div class="alert alert-info">
             <strong>Status:</strong> <span id="status" style="color: darkblue;">Tab is focused</span>
         </div>
-        
-        <form method="post" id="exam-form" action="{% url 'teacher-submit-exam' %}">
+
+        <!-- Camera on top right of the webpage -->
+        <div id="camera-container" style="position: fixed; top: 10px; right: 10px; width: 160px; height: 120px; border: 2px solid #000; z-index: 1000; background-color: #000; overflow: hidden;">
+            <img id="camera-feed" src="{% url 'video' %}" width="160" height="120" 
+                 alt="Live Camera Feed" style="border: 2px solid red; border-radius: 8px; object-fit: cover;">
+        </div>
+
+        <!-- Exam Form -->
+        <form method="post" id="exam-form" action="{% url 'student-submit-exam' %}">
             {% csrf_token %}
             <input type="hidden" name="event_log" id="event-log-input">
+            <input type="hidden" name="exam_id" value="{{ exam.id }}">
             
             <div class="card">
                 <div class="card-header">
@@ -24,32 +32,35 @@
                 <div class="card-body">
                     {% for question in questions %}
                     <div class="mb-4">
-                        <h5>Question {{ forloop.counter }}</h5>
+                        <h5>{{ question.question_number }}</h5>
                         <p>{{ question.question_text }}</p>
                         
                         {% if question.question_type == 'numerical' %}
                             <input type="text" name="answer_{{ question.id }}" class="form-control" required>
+                            
                         {% elif question.question_type == 'true_false' %}
                             <div class="form-check">
-                                <input type="radio" name="answer_{{ question.id }}" value="True" class="form-check-input" required>
-                                <label class="form-check-label">True</label>
+                                <input type="radio" name="answer_{{ question.id }}" value="True" class="form-check-input" id="q{{ question.id }}_true" required>
+                                <label class="form-check-label" for="q{{ question.id }}_true">True</label>
                             </div>
                             <div class="form-check">
-                                <input type="radio" name="answer_{{ question.id }}" value="False" class="form-check-input" required>
-                                <label class="form-check-label">False</label>
+                                <input type="radio" name="answer_{{ question.id }}" value="False" class="form-check-input" id="q{{ question.id }}_false" required>
+                                <label class="form-check-label" for="q{{ question.id }}_false">False</label>
                             </div>
+                            
                         {% elif question.question_type == 'mcq_one' %}
                             {% for choice in question.choices %}
                             <div class="form-check">
-                                <input type="radio" name="answer_{{ question.id }}" value="{{ choice }}" class="form-check-input" required>
-                                <label class="form-check-label">{{ choice }}</label>
+                                <input type="radio" name="answer_{{ question.id }}" value="{{ choice }}" class="form-check-input" id="q{{ question.id }}_{{ forloop.counter }}" required>
+                                <label class="form-check-label" for="q{{ question.id }}_{{ forloop.counter }}">{{ choice }}</label>
                             </div>
                             {% endfor %}
+                            
                         {% elif question.question_type == 'mcq_multi' %}
                             {% for choice in question.choices %}
                             <div class="form-check">
-                                <input type="checkbox" name="answer_{{ question.id }}" value="{{ choice }}" class="form-check-input">
-                                <label class="form-check-label">{{ choice }}</label>
+                                <input type="checkbox" name="answer_{{ question.id }}" value="{{ choice }}" class="form-check-input" id="q{{ question.id }}_{{ forloop.counter }}">
+                                <label class="form-check-label" for="q{{ question.id }}_{{ forloop.counter }}">{{ choice }}</label>
                             </div>
                             {% endfor %}
                         {% endif %}
@@ -83,9 +94,7 @@
     }
 </style>
 
-<script>
-    const EXAM_ID = {{ exam.id|default:"null" }};
-</script>
-<script src="{% static 'teacherside/js/test_exam.js' %}"></script>
+
+<script src="{% static 'studentside/js/test_exam.js' %}"></script>
 
 {% endblock %}

@@ -40,6 +40,7 @@
     const gazeCircle = document.getElementById('gaze-circle');
     const calibrationStage = "";
     let calibrationStatusInterval; // Store interval ID
+    let fetchGazePointInterval; // Store interval ID
 
     document.addEventListener('keydown', function(event) {
         if (event.key === 'c' || event.key === 'C') {
@@ -64,6 +65,8 @@
             .catch(error => console.error('Error updating calibration:', error));
         }
     });
+
+
 
     function fetchGazePoint() {
         fetch("{% url 'get-screen-position' %}")
@@ -112,6 +115,13 @@
     }
     // Update calibration status every 200ms and store the interval ID
     calibrationStatusInterval = setInterval(updateCalibrationStatus, 200);
+    
+    // Handle page unload (closing tab/window)
+    window.addEventListener('beforeunload', function() {
+        navigator.sendBeacon("{% url 'release-camera' %}");
+        clearInterval(calibrationStatusInterval);
+        clearInterval(fetchGazePointInterval);
+    });
 
     
 </script>

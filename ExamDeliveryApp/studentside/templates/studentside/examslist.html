@@ -1,0 +1,55 @@
+{% extends 'studentside/base.html' %}
+
+{% block title %}Available Exams - MakiTEST{% endblock %}
+
+{% block header %}Available Exams{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <h2 class="mb-4">Your Exams</h2>
+        
+        {% if exams %}
+            <div class="table-responsive">
+                <table class="table table-striped table-hover">
+                    <thead class="thead-dark">
+                        <tr>
+                            <th>Exam Title</th>
+                            <th>Date</th>
+                            <th>Time Limit</th>
+                            <th>Total Points</th>
+                            <th>Questions</th>
+                            <th>Attempts Left</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for exam in exams %}
+                        <tr>
+                            <td>{{ exam.title }}</td>
+                            <td>{{ exam.exam_date|date:"M d, Y g:i A"|default:"Not scheduled" }}</td>
+                            <td>{{ exam.time_limit }} minutes</td>
+                            <td>{{ exam.total_points }}</td>
+                            <td>{{ exam.question_count }}</td>
+                            <td>{{ exam.remaining_attempts|default:"N/A" }}</td>
+                            <td>
+                                <a href="{% url 'exam-detail' exam.id %}" class="btn btn-primary btn-sm">
+                                    View/Take Exam
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="alert alert-info" role="alert">
+                <h4 class="alert-heading">No Exams Available</h4>
+                <p>There are currently no exams assigned to your class ({{ student_class }}).</p>
+                <hr>
+                <p class="mb-0">Please check back later or contact your teacher for more information.</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

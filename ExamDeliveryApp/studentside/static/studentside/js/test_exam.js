@@ -54,23 +54,67 @@ document.addEventListener("DOMContentLoaded", function() {let eventLog = [];
         fetch("{% url 'violation-check' %}", {
             method: "POST",
             headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-                'X-CSRFToken': csrftoken
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRFToken': csrftoken
             },
-            body: `event_log=${encodeURIComponent(JSON.stringify(eventLog))}&violation=true`
+            body: `event_log=${encodeURIComponent(JSON.stringify(eventLog))}&violation=true&exam_id=${examId}`
         }).then(response => {
             // After logging violation, wait 3 seconds then redirect to dashboard
             setTimeout(function() {
-                window.location.href = "/teacher";
+            window.location.href = "/student";
             }, 800);
         });
     }
 
-    // Block right-click context menu
+    // Load calibration and camera when page loads
+    function reloadCameraWithCalibration() {
+        fetch("/student/api/reload_camera_with_calibration/", {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrftoken,
+            },
+        })
+        .then(response => response.json())
+        .then(data => {
+            console.log('Camera reload:', data);
+            if (data.status === 'success') {
+                console.log('Calibration loaded successfully');
+                
+                // Force reload the camera feed by updating the src with a cache-busting parameter
+                const cameraFeed = document.getElementById('camera-feed');
+                if (cameraFeed) {
+                    const currentSrc = cameraFeed.src.split('?')[0]; // Remove existing query params
+                    cameraFeed.src = currentSrc + '?t=' + new Date().getTime(); // Add timestamp to bust cache
+                    
+                    if (data.calibration_stage === 6) {
+                        cameraFeed.style.borderColor = 'green';
+                    }
+                }
+            } else if (data.status === 'warning') {
+                console.warn(data.message);
+                
+                // Still reload camera feed even if no calibration data
+                const cameraFeed = document.getElementById('camera-feed');
+                if (cameraFeed) {
+                    const currentSrc = cameraFeed.src.split('?')[0];
+                    cameraFeed.src = currentSrc + '?t=' + new Date().getTime();
+                }
+            } else {
+                console.error(data.message);
+            }
+        })
+        .catch(error => console.error('Error reloading camera:', error));
+    }
+
+    // Call the function on page load
+    try{reloadCameraWithCalibration();}catch(err){console.error('Error calling reloadCameraWithCalibration:', err);}
+    
+
+
+    // Log right-click attempts
     document.addEventListener("contextmenu", function(event) {
         event.preventDefault();
-        blockPage("right_click");
-        return false;
+        eventLog.push({type: "keydown", key: "rightclick", ts: Date.now()});
     });
 
     // Block F12, Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+Shift+C, Ctrl+U (common inspect shortcuts)
@@ -104,28 +148,6 @@ document.addEventListener("DOMContentLoaded", function() {let eventLog = [];
             event.preventDefault();
             blockPage("Ctrl+U");
             return false;
-        }
-    });
-
-    // Detect DevTools opening (heuristic detection)
-    let devtoolsOpen = false;
-    const threshold = 400;
-
-    setInterval(function() {
-        const widthThreshold = window.outerWidth - window.innerWidth > threshold;
-        const heightThreshold = window.outerHeight - window.innerHeight > threshold;
-        
-        if ((widthThreshold || heightThreshold) && !devtoolsOpen) {
-            devtoolsOpen = true;
-            blockPage("devtools_opened");
-        }
-    }, 1000);
-
-    // Detect if DevTools is already open on page load
-    window.addEventListener('load', function() {
-        if (window.outerWidth - window.innerWidth > threshold || 
-            window.outerHeight - window.innerHeight > threshold) {
-            blockPage("devtools_already_open");
         }
     });
 
@@ -177,12 +199,21 @@ document.addEventListener("DOMContentLoaded", function() {let eventLog = [];
         eventLogInput.value = JSON.stringify(eventLog);
     });
 
-    // Warn before leaving page
+    // Warn before leaving page AND release camera
     window.addEventListener("beforeunload", function(e) {
+        // Release camera synchronously
+        fetch("/student/api/release_camera/", {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrftoken,
+            },
+            keepalive: true
+        });
+        
         if (eventLog.length > 0 && violationCount === 0) {
             e.preventDefault();
-            e.returnValue = "You have unsaved exam progress. Are you sure you want to leave?";
-        }
+            return "You have unsaved exam progress. Are you sure you want to leave?";
+        }   
     });
 
     // Disable text selection to prevent easy copying
@@ -192,4 +223,3 @@ document.addEventListener("DOMContentLoaded", function() {let eventLog = [];
         }
     });
 });
-    

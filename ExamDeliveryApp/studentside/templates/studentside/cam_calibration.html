@@ -130,8 +130,6 @@
 </style>
 
 <script>
-    
-
     const screenWidth = window.innerWidth;
     const screenHeight = window.innerHeight;
     const gazeCircle = document.getElementById('gaze-circle');
@@ -143,7 +141,7 @@
 
     let calibrationStatusInterval;
     let currentStage;
-
+    let isInitialized = false;
 
     // Calibration point positions
     const calibrationPoints = {
@@ -156,6 +154,16 @@
         '5': { x: screenWidth / 2, y: screenHeight / 2, text: "Calibration Complete!" },
         '6': { x: 0, y: 0, text: "Tracking Active" }
     };
+
+    // Check if camera feed is loading
+    cameraFeed.addEventListener('load', function() {
+        console.log('Camera feed loaded successfully');
+    });
+
+    cameraFeed.addEventListener('error', function() {
+        console.error('Camera feed failed to load');
+        alert('Camera feed failed to load. Please refresh the page or check camera permissions.');
+    });
 
     function showCalibrationPoint(stage) {
         const point = calibrationPoints[stage];
@@ -184,13 +192,48 @@
 
     document.addEventListener('keydown', function(event) {
         if (event.key === 'c' || event.key === 'C') {
+            if (!isInitialized) {
+                console.warn('System not initialized yet. Please wait...');
+                return;
+            }
+
+            // Check if the border is green (calibrated) before allowing progression
+            const isGreen = cameraFeed.style.borderColor === 'green';
+            
+            if (!isGreen && currentStage < 6) {
+                // Show visual feedback that calibration is not complete
+                const statusBadge = document.querySelector('#calibration-status .badge');
+                const originalText = statusBadge.textContent;
+                
+                statusBadge.textContent = "⚠️ Wait for GREEN border!";
+                statusBadge.classList.remove('bg-secondary', 'bg-success');
+                statusBadge.classList.add('bg-warning');
+                
+                // Flash the border orange
+                cameraFeed.style.borderColor = 'orange';
+                setTimeout(() => {
+                    cameraFeed.style.borderColor = 'red';
+                    statusBadge.textContent = originalText;
+                    statusBadge.classList.remove('bg-warning');
+                    statusBadge.classList.add('bg-secondary');
+                }, 1000);
+                
+                return; // Don't proceed to next stage
+            }
+
+            // Border is green, proceed to next calibration stage
             fetch("{% url 'update-calibration' %}", {
                 method: 'POST',
                 headers: {
                     'X-CSRFToken': '{{ csrf_token }}',
                 },
             })
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
             .then(data => {
                 console.log('Calibration updated:', data);
                 currentStage = data.calibration_stage;
@@ -200,6 +243,7 @@
                     `Calibration Stage: ${data.calibration_stage} - ${point ? point.text : 'Unknown'}`;
                 
                 updateProgressBar(currentStage);
+                showCalibrationPoint(currentStage);
                 
                 // Stop calibration status updates when stage 6 is reached
                 if (data.calibration_stage >= 6 && calibrationStatusInterval) {
@@ -208,10 +252,12 @@
                     console.log('Calibration complete - stopped status updates');
                 }
             })
-            .catch(error => console.error('Error updating calibration:', error));
+            .catch(error => {
+                console.error('Error updating calibration:', error);
+                alert('Failed to update calibration. Please try again.');
+            });
         }
     });
-
 
     function save_calibration() {
         fetch("{% url 'save-calibration' %}", {
@@ -228,8 +274,15 @@
     }
 
     function fetchGazePoint() {
+        if (!isInitialized) return;
+        
         fetch("{% url 'get-screen-position' %}")
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Failed to fetch gaze point');
+                }
+                return response.json();
+            })
             .then(data => {
                 document.getElementById('mid-x').textContent = data.mid_x.toFixed(2);
                 document.getElementById('mid-y').textContent = data.mid_y.toFixed(2);
@@ -247,13 +300,23 @@
                 gazeCircle.style.top = clampedY + 'px';
                 gazeCircle.style.display = 'block';
             })
-            .catch(error => console.error('Error fetching eye midpoint:', error));
+            .catch(error => {
+                console.error('Error fetching eye midpoint:', error);
+                // Don't show alert for every fetch error
+            });
     }
 
     // Fetch face distance every 200ms
     function fetchFaceDistance(){
+        if (!isInitialized) return;
+        
         fetch("{% url 'get-face-distance' %}")
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Failed to fetch face distance');
+                }
+                return response.json();
+            })
             .then(data => {
                 console.log('Face distance (cm):', data.face_distance_cm);
                 document.getElementById('face-distance').textContent = data.face_distance_cm.toFixed(2) + ' cm';
@@ -267,57 +330,34 @@
                     distanceInfo.classList.add('alert-warning');
                 }
             })
-            .catch(error => console.error('Error fetching face distance:', error));
+            .catch(error => {
+                console.error('Error fetching face distance:', error);
+            });
     }
 
-    setInterval(fetchFaceDistance, 200);
-
-    // Fetch initial calibration stage FIRST, then start everything else
-    fetch("{% url 'get-calibration-stage' %}")
-        .then(response => response.json())
-        .then(data => {
-            currentStage = data.calibration_stage;
-            const point = calibrationPoints[currentStage];
-            document.getElementById('calibration-stage').textContent = 
-                `Calibration Stage: ${data.calibration_stage} - ${point ? point.text : 'Unknown'}`;
-            updateProgressBar(currentStage);
-            showCalibrationPoint(currentStage);
-            
-            // NOW start the intervals after we have currentStage
-            // Fetch eye midpoint every 50ms
-            setInterval(fetchGazePoint, 50);
-            
-            // Update calibration status every 200ms
-            calibrationStatusInterval = setInterval(updateCalibrationStatus, 200);
-        })
-        .catch(error => {
-            console.error('Error fetching initial calibration stage:', error);
-            // Fallback to -1 if error
-            currentStage = -1;
-            showCalibrationPoint(currentStage);
-            
-            // Start intervals anyway
-            setInterval(fetchGazePoint, 200);
-            calibrationStatusInterval = setInterval(updateCalibrationStatus, 200);
-        });
-
     function updateCalibrationStatus() {
+        if (!isInitialized) return;
+        
         fetch("{% url 'update-calibration-status' %}", {
             method: 'POST',
             headers: {
                 'X-CSRFToken': '{{ csrf_token }}',
             },
-        }).then(response => response.json())
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Failed to update calibration status');
+            }
+            return response.json();
+        })
         .then(data => {
             const statusBadge = document.querySelector('#calibration-status .badge');
-            const cameraFeed = document.getElementById('camera-feed');
             
             if (data.status === true || data.status === 'true') {
                 statusBadge.textContent = "Status: Calibrated";
                 statusBadge.classList.remove('bg-secondary');
                 statusBadge.classList.add('bg-success');
                 cameraFeed.style.borderColor = 'green';
-                showCalibrationPoint(currentStage); // Show current calibration point
             } else {
                 statusBadge.textContent = "Status: Not Calibrated";
                 statusBadge.classList.remove('bg-success');
@@ -325,44 +365,80 @@
                 cameraFeed.style.borderColor = 'red';
             }
         })
-        .catch(error => console.error('Error updating calibration status:', error));
+        .catch(error => {
+            console.error('Error updating calibration status:', error);
+        });
     }
-    
 
-    // Handle page unload - use beforeunload for better reliability
+    // Initialize camera with retry logic
+    function initializeCamera(retries = 3, delay = 1000) {
+        fetch("{% url 'get-calibration-stage' %}")
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Failed to initialize camera');
+                }
+                return response.json();
+            })
+            .then(data => {
+                currentStage = data.calibration_stage;
+                const point = calibrationPoints[currentStage];
+                document.getElementById('calibration-stage').textContent = 
+                    `Calibration Stage: ${data.calibration_stage} - ${point ? point.text : 'Unknown'}`;
+                updateProgressBar(currentStage);
+                showCalibrationPoint(currentStage);
+                
+                // Mark as initialized
+                isInitialized = true;
+                console.log('Camera initialized successfully');
+                
+                // NOW start the intervals after we have currentStage
+                setInterval(fetchGazePoint, 50);
+                setInterval(fetchFaceDistance, 200);
+                calibrationStatusInterval = setInterval(updateCalibrationStatus, 200);
+            })
+            .catch(error => {
+                console.error('Error initializing camera:', error);
+                
+                if (retries > 0) {
+                    console.log(`Retrying camera initialization... (${retries} attempts left)`);
+                    setTimeout(() => {
+                        initializeCamera(retries - 1, delay);
+                    }, delay);
+                } else {
+                    alert('Failed to initialize camera after multiple attempts. Please refresh the page.');
+                    // Fallback initialization
+                    currentStage = -1;
+                    showCalibrationPoint(currentStage);
+                    isInitialized = true;
+                    
+                    setInterval(fetchGazePoint, 200);
+                    setInterval(fetchFaceDistance, 200);
+                    calibrationStatusInterval = setInterval(updateCalibrationStatus, 200);
+                }
+            });
+    }
+
+    // Start initialization when page loads
+    initializeCamera();
+
+    // Handle page unload
     window.addEventListener('beforeunload', function(e) {
-        // Clear interval first
         clearInterval(calibrationStatusInterval);
         
-        // Release camera with keepalive to ensure request completes
-        fetch("{% url 'release-camera' %}", {
-            method: 'POST',
-            headers: {
-                'X-CSRFToken': '{{ csrf_token }}',
-            },
-            keepalive: true  // Ensures request completes even if page closes
-        });
-        
-        // Reset calibration
-        fetch("{% url 'reset-calibration' %}", {
-            method: 'POST',
-            headers: {
-                'X-CSRFToken': '{{ csrf_token }}',
-            },
-            keepalive: true
-        });
+        // Only release and reset if user is actually leaving
+        // Don't do this on refresh as it causes race condition
+        navigator.sendBeacon("{% url 'release-camera' %}");
     });
 
-    // Also handle visibility change (when tab is hidden/closed)
+    // Better approach: Use visibilitychange to detect page hide
     document.addEventListener('visibilitychange', function() {
         if (document.visibilityState === 'hidden') {
-            fetch("{% url 'release-camera' %}", {
-                method: 'POST',
-                headers: {
-                    'X-CSRFToken': '{{ csrf_token }}',
-                },
-                keepalive: true
-            }).catch(error => console.error('Error releasing camera:', error));
+            clearInterval(calibrationStatusInterval);
+        } else if (document.visibilityState === 'visible') {
+            // Page became visible again - reinitialize if needed
+            if (!isInitialized) {
+                initializeCamera();
+            }
         }
     });
 
@@ -377,12 +453,22 @@
         .then(response => response.json())
         .then(data => {
             console.log('Calibration loaded:', data);
-            showCalibrationPoint(data.currentStage);
-            updateProgressBar(data.currentStage);
-            currentStage = data.currentStage;
-            alert('Existing calibration data loaded successfully.');
+            if (data.calibration_stage !== undefined) {
+                currentStage = data.calibration_stage;
+                showCalibrationPoint(currentStage);
+                updateProgressBar(currentStage);
+                const point = calibrationPoints[currentStage];
+                document.getElementById('calibration-stage').textContent = 
+                    `Calibration Stage: ${currentStage} - ${point ? point.text : 'Unknown'}`;
+                alert('Existing calibration data loaded successfully.');
+            } else {
+                alert('No calibration data found.');
+            }
         })
-        .catch(error => console.error('Error loading calibration:', error));
+        .catch(error => {
+            console.error('Error loading calibration:', error);
+            alert('Failed to load calibration data.');
+        });
     });
 
     // Reset calibration data
@@ -396,20 +482,39 @@
         .then(response => response.json())
         .then(data => {
             console.log('Calibration reset:', data);
-            showCalibrationPoint(-1);
-            updateProgressBar(-1);
-            alert('Calibration data has been reset.');
+            
+            currentStage = -1;
+            const point = calibrationPoints[currentStage];
+            document.getElementById('calibration-stage').textContent = 
+                `Calibration Stage: ${currentStage} - ${point ? point.text : 'Unknown'}`;
+            
+            showCalibrationPoint(currentStage);
+            updateProgressBar(currentStage);
+            
+            const statusBadge = document.querySelector('#calibration-status .badge');
+            statusBadge.textContent = "Status: Not Calibrated";
+            statusBadge.classList.remove('bg-success');
+            statusBadge.classList.add('bg-secondary');
+            
+            cameraFeed.style.borderColor = 'red';
+            startExamBtn.disabled = true;
+            
+            const progressBar = document.getElementById('calibration-progress');
+            progressBar.classList.add('progress-bar-animated');
+            progressBar.classList.remove('bg-success');
+            
+            alert('Calibration data has been reset. Press C to start calibration from stage -1.');
         })
-        .catch(error => console.error('Error resetting calibration:', error));
+        .catch(error => {
+            console.error('Error resetting calibration:', error);
+            alert('Failed to reset calibration.');
+        });
     });
-
 
     // Handle start exam button click
     startExamBtn.addEventListener('click', function() {
-        // Clear interval
         clearInterval(calibrationStatusInterval);
         
-        // Release camera synchronously before navigating
         fetch("{% url 'release-camera' %}", {
             method: 'POST',
             headers: {
@@ -417,7 +522,6 @@
             },
             keepalive: true
         }).finally(() => {
-            // Navigate after camera is released
             window.location.href = "{% url 'student-take-exam' exam.id %}";
         });
     });

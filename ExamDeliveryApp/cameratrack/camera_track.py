@@ -6,6 +6,7 @@ from collections import deque
 import json
 import os
 import keyboard
+import time
 
 try:
     from .camera_track_constants import GazeTrackerState
@@ -23,7 +24,12 @@ class CameraTrack:
         
          # Screen dimensions for gaze mapping
         if not self.cam.isOpened():
-            raise ValueError("Could not open camera.")
+            try:
+                self.cam.open()
+                time.sleep(2)  # Wait for the camera to initialize
+            except Exception as e:
+                print(f"Error opening camera: {e}")
+
         # Set camera properties for better reliability
         
         self.cam.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
@@ -182,8 +188,9 @@ class CameraTrack:
             stage = 6
         elif stage < -1:
             stage = -1
-        else:
-            self.calibration_stage = stage
+        
+        self.calibration_stage = stage
+        print(f"DEBUG camera_track.py: Calibration stage updated to {stage}")  # Add debug log
 
     def reset_calibration(self):
         """Reset all calibration values to default"""

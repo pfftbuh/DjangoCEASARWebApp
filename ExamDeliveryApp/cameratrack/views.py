@@ -18,7 +18,22 @@ def camera_track(request):
 def get_camera():
     global camera_instance
     if camera_instance is None:
-        camera_instance = camera_feed()
+        try:
+            camera_instance = camera_feed()
+            # Test if camera is working
+            test_frame = camera_instance.get_frame()
+            if test_frame is None:
+                raise ValueError("Camera not accessible")
+        except Exception as e:
+            print(f"Error initializing camera: {e}")
+            # Wait a bit and try again
+            import time
+            time.sleep(0.5)
+            try:
+                camera_instance = camera_feed()
+            except:
+                camera_instance = None
+                raise
     return camera_instance
 
 
@@ -78,16 +93,37 @@ def update_calibration(request):
     if camera_instance is None:
         camera_instance = get_camera()
     
-    # Move the logic outside the if-else
-    new_stage = camera_instance.calibration_stage + 1
+    # Get current stage
+    current_stage = camera_instance.calibration_stage
+    
+    # Clear the samples for the CURRENT stage before moving to next
+    if current_stage == -1:
+        camera_instance.calibration_up_samples.clear()
+    elif current_stage == 0:
+        camera_instance.calibration_center_samples.clear()
+    elif current_stage == 1:
+        camera_instance.calibration_down_samples.clear()
+    elif current_stage == 2:
+        camera_instance.calibration_left_samples.clear()
+    elif current_stage == 3:
+        camera_instance.calibration_h_center_samples.clear()
+    elif current_stage == 4:
+        camera_instance.calibration_right_samples.clear()
+    
+    # Move to next stage
+    new_stage = current_stage + 1
     if new_stage > 6:
         new_stage = 6  # Max stage is 6 (tracking mode)
-    camera_instance.update_calibration_stage(new_stage)
-    next_point = get_next_point_text(camera_instance.calibration_stage)
+    
+    # Update the stage
+    camera_instance.calibration_stage = new_stage  # Direct assignment instead of method
+    next_point = get_next_point_text(new_stage)
+    
+    print(f"DEBUG: Updated calibration stage from {current_stage} to {new_stage}")  # Debug log
     
     return JsonResponse({
         'next_point': next_point, 
-        'calibration_stage': camera_instance.calibration_stage
+        'calibration_stage': new_stage
     })
 
 

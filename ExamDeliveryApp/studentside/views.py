@@ -2,7 +2,7 @@ import json
 from django.shortcuts import render
 from django.http import HttpResponse, JsonResponse
 from home.decorators import login_required_role
-from home.models import Profile, StudentProfile, Exams, ExamSubmissions
+from home.models import Profile, StudentProfile, Exams, ExamSubmissions, ActiveExamSessions
 
 
 @login_required_role(allowed_roles=['Student', 'Admin'])
@@ -149,11 +149,56 @@ def student_take_exam(request, exam_id):
         return HttpResponse("You have reached the maximum number of attempts for this exam.", status=400)
     
     else:
+
+        # Get exam date and time limit
+        exam_date = exam.exam_date
+        time_limit = exam.time_limit
+
+        # Check if date and time now is before or after exam date
+        # from django.utils import timezone
+        # now = timezone.now()
+        # if exam_date and now < exam_date:
+        #     return HttpResponse("The exam is not yet available. Please check the exam date and time.", status=403)
+        # elif exam_date and now > exam_date + timezone.timedelta(minutes=time_limit):
+        #     return HttpResponse("The exam time has passed. You can no longer take this exam.", status=403)
+
+        # Set end time based on time now plus time limit
+        from django.utils import timezone
+        start_time = timezone.now()
+        end_time = start_time + timezone.timedelta(minutes=time_limit)
+
+        # Get the remaining time in seconds
+        remaining_time = (end_time - start_time).total_seconds() // 60  # in minutes
+
+        # Try to create an active exam session
+        try:
+            # If an active session already exists, do not create a new one
+            active_session = ActiveExamSessions.objects.get(exam=exam, student=student_profile, is_active=True)
+            start_time = active_session.start_time
+            end_time = active_session.end_time  # Use existing end time
+        except ActiveExamSessions.DoesNotExist:
+            active_session = ActiveExamSessions.objects.create(
+                exam=exam,
+                student=student_profile,
+                is_active=True,
+                end_time=end_time  # Use newly calculated end_time
+            )
+        except Exception as e:
+            return HttpResponse(f"Error creating active exam session: {str(e)}", status=500)
+
         # Get exam questions in a list
         questions = exam.questions
-        print(f"DEBUG: Number of questions: {len(questions)}")  # ADD THIS
-        print(f"DEBUG: Questions: {questions}")  # ADD THIS
-        return render(request, 'studentside/(debug)test_exam.html', {'exam': exam, 'questions': questions})
+        print(f"DEBUG: Number of questions: {len(questions)}")
+        print(f"DEBUG: Questions: {questions}")
+
+        # Pass both time_limit and end_time to template
+        return render(request, 'studentside/(debug)test_exam.html', {
+            'exam': exam, 
+            'questions': questions, 
+            'exam_duration': time_limit,  # Duration in minutes
+            'end_time': end_time.isoformat(),  # ISO format string for JavaScript
+            'active_session': active_session
+        })
     
 
 @login_required_role(allowed_roles=['Student', 'Admin'])
@@ -211,8 +256,53 @@ def student_submit_exam(request):
         )
 
         submission.save()
+
+        # Update active exam session to inactive
+        try:
+            active_session = ActiveExamSessions.objects.get(exam__id=exam_id, student=student_profile, is_active=True)
+            active_session.is_active = False
+            active_session.end_time = submission.submission_date
+            active_session.save()
+        except ActiveExamSessions.DoesNotExist:
+            return HttpResponse("Active exam session not found.", status=404)
         
-        return HttpResponse(f"Exam submitted successfully! Your score: {score}/{exam.total_points}")
+        # Place event log processing here if needed
+        try:
+            events = json.loads(event_log)
+            key_count = 0
+            altout_count = 0
+            altin_count = 0
+            copy_count = 0
+            paste_count = 0
+
+            for event in events: 
+                ts = event.get('ts')
+                if event.get('type') == 'keydown':
+                    key_count += 1
+                elif event.get('type') == 'focus':
+                    altin_count += 1
+                elif event.get('type') == 'blur':
+                    altout_count += 1
+                elif event.get('type') == 'copy':
+                    copy_count += 1
+                elif event.get('type') == 'paste':
+                    paste_count += 1
+            
+            #List of count per event type
+            events_list = {
+                'Keypresses': key_count,
+                'Alt Tabbed In': altin_count,
+                'Alt Tabbed Out': altout_count,
+                'Copied': copy_count,
+                'Pasted': paste_count
+            }
+
+        except Exception as e:
+            events = f"Error parsing event log: {str(e)}"
+                
+                
+        return render(request, 'studentside/(debug)test_submit_exam.html', {'event_log': events_list, 'score': score})
+        
     else:
         return HttpResponse("Invalid request method.", status=405)
 
@@ -263,41 +353,7 @@ def teacher_start_exam(request, exam_id):
     if request.method == 'POST':
         # Process submitted event log
         event_log = request.POST.get('event_log', '[]')
-        try:
-            events = json.loads(event_log)
-            key_count = 0
-            altout_count = 0
-            altin_count = 0
-            copy_count = 0
-            paste_count = 0
-
-            for event in events: 
-                ts = event.get('ts')
-                if event.get('type') == 'keydown':
-                    key_count += 1
-                elif event.get('type') == 'focus':
-                    altin_count += 1
-                elif event.get('type') == 'blur':
-                    altout_count += 1
-                elif event.get('type') == 'copy':
-                    copy_count += 1
-                elif event.get('type') == 'paste':
-                    paste_count += 1
-            
-            #List of count per event type
-            events_list = {
-                'Keypresses': key_count,
-                'Alt Tabbed In': altin_count,
-                'Alt Tabbed Out': altout_count,
-                'Copied': copy_count,
-                'Pasted': paste_count
-            }
-
-        except Exception as e:
-            events = f"Error parsing event log: {str(e)}"
-                
-                
-        return render(request, 'teacherside/(debug)test_submit_exam.html', {'event_log': events_list})
+        
     else:
         exam = Exams.objects.get(id=exam_id)
         # Get exam questions in a list
@@ -315,4 +371,13 @@ def teacher_start_exam(request, exam_id):
             return HttpResponse("Violation logged", status=200)
         else:
             return render(request, 'teacherside/(debug)test_exam.html')
-    
+
+@login_required_role(allowed_roles=['Student', 'Admin'])
+def student_active_exam(request, exam_id):
+    # to update active exam session status
+    student_profile = StudentProfile.objects.get(profile__user=request.user)
+    try:
+        active_session = ActiveExamSessions.objects.get(exam__id=exam_id, student=student_profile, is_active=True)
+        return JsonResponse({'is_active': True, 'start_time': active_session.start_time})
+    except ActiveExamSessions.DoesNotExist:
+        return JsonResponse({'is_active': False})

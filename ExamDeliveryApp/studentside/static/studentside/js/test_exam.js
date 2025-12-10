@@ -49,6 +49,53 @@ document.addEventListener("DOMContentLoaded", function() {let eventLog = [];
         submitViolationLog();
     }
 
+    // Timer function that persists across page refreshes
+    function startTimer(endTimeISO, display) {
+        const endTime = new Date(endTimeISO).getTime();
+        
+        // Store end time in localStorage for persistence
+        const storageKey = `exam_${window.examConfig.examId}_endtime`;
+        if (!localStorage.getItem(storageKey)) {
+            localStorage.setItem(storageKey, endTime);
+        }
+        
+        const countdownInterval = setInterval(function () {
+            const now = new Date().getTime();
+            const storedEndTime = parseInt(localStorage.getItem(storageKey));
+            const timeRemaining = Math.floor((storedEndTime - now) / 1000); // in seconds
+            
+            if (timeRemaining <= 0) {
+                clearInterval(countdownInterval);
+                localStorage.removeItem(storageKey);
+                
+                // Auto-submit the exam when time is up
+                alert("Time is up! Your exam will be submitted automatically.");
+                document.getElementById("exam-form").submit();
+                return;
+            }
+            
+            const hours = Math.floor(timeRemaining / 3600);
+            const minutes = Math.floor((timeRemaining % 3600) / 60);
+            const seconds = timeRemaining % 60;
+            
+            // Format with leading zeros
+            const hoursStr = hours.toString().padStart(2, '0');
+            const minutesStr = minutes.toString().padStart(2, '0');
+            const secondsStr = seconds.toString().padStart(2, '0');
+            
+            display.textContent = `${hoursStr}:${minutesStr}:${secondsStr}`;
+        }, 1000);
+    }
+
+    // Initialize timer on page load
+    const timeLeftDisplay = document.getElementById("time-left");
+
+    if (window.examConfig && window.examConfig.endTime && timeLeftDisplay) {
+        startTimer(window.examConfig.endTime, timeLeftDisplay);
+    } else {
+        console.error('Exam end time not found in config');
+    }
+
     function submitViolationLog() {
         // Send violation to server via AJAX
         fetch("{% url 'violation-check' %}", {
@@ -109,7 +156,6 @@ document.addEventListener("DOMContentLoaded", function() {let eventLog = [];
     // Call the function on page load
     try{reloadCameraWithCalibration();}catch(err){console.error('Error calling reloadCameraWithCalibration:', err);}
     
-
 
     // Log right-click attempts
     document.addEventListener("contextmenu", function(event) {
@@ -196,6 +242,11 @@ document.addEventListener("DOMContentLoaded", function() {let eventLog = [];
             alert("Cannot submit exam due to security violations.");
             return false;
         }
+        
+        // Clear the stored end time from localStorage
+        const storageKey = `exam_${window.examConfig.examId}_endtime`;
+        localStorage.removeItem(storageKey);
+        
         eventLogInput.value = JSON.stringify(eventLog);
     });
 
@@ -209,6 +260,12 @@ document.addEventListener("DOMContentLoaded", function() {let eventLog = [];
             },
             keepalive: true
         });
+        
+        // If there are violations, clear localStorage
+        if (violationCount > 0) {
+            const storageKey = `exam_${window.examConfig.examId}_endtime`;
+            localStorage.removeItem(storageKey);
+        }
         
         if (eventLog.length > 0 && violationCount === 0) {
             e.preventDefault();

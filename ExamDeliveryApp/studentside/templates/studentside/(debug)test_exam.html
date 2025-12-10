@@ -1,4 +1,4 @@
-{% extends 'teacherside/base.html' %}
+{% extends 'studentside/base.html' %}
 
 {% load static %}
 
@@ -10,7 +10,7 @@
 <div class="row"  data-exam-id="{{ exam.id }}">
     <div class="col-md-8 offset-md-2">
         <div class="alert alert-info">
-            <strong>Status:</strong> <span id="status" style="color: darkblue;">Tab is focused</span>
+            <strong>Time left: <span id="time-left">Loading...</span></strong>
         </div>
 
         <!-- Camera on top right of the webpage -->
@@ -94,6 +94,13 @@
     }
 </style>
 
+<script>
+    // Pass Django variables to JavaScript
+    window.examConfig = {
+        examId: {{ exam.id }},
+        examDurationMinutes: {{ exam_duration }},  // Duration in minutes from Django
+    };
+</script>
 
 <script src="{% static 'studentside/js/test_exam.js' %}"></script>
 

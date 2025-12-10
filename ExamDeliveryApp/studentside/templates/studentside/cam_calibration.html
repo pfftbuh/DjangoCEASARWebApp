@@ -295,26 +295,54 @@
     }
     
 
-    // Handle page unload
-    window.addEventListener('unload', function() {
+    // Handle page unload - use beforeunload for better reliability
+    window.addEventListener('beforeunload', function(e) {
+        // Clear interval first
+        clearInterval(calibrationStatusInterval);
+        
+        // Release camera with keepalive to ensure request completes
         fetch("{% url 'release-camera' %}", {
             method: 'POST',
             headers: {
                 'X-CSRFToken': '{{ csrf_token }}',
             },
+            keepalive: true  // Ensures request completes even if page closes
         });
+        
+        // Reset calibration
         fetch("{% url 'reset-calibration' %}", {
             method: 'POST',
             headers: {
                 'X-CSRFToken': '{{ csrf_token }}',
             },
+            keepalive: true
         });
-        clearInterval(calibrationStatusInterval);
+    });
+
+    // Also handle visibility change (when tab is hidden/closed)
+    document.addEventListener('visibilitychange', function() {
+        if (document.visibilityState === 'hidden') {
+            // Page is being hidden/closed
+            navigator.sendBeacon("{% url 'release-camera' %}");
+        }
     });
 
     // Handle start exam button click
     startExamBtn.addEventListener('click', function() {
-        window.location.href = "{% url 'student-take-exam' exam.id %}";
+        // Clear interval
+        clearInterval(calibrationStatusInterval);
+        
+        // Release camera synchronously before navigating
+        fetch("{% url 'release-camera' %}", {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}',
+            },
+            keepalive: true
+        }).finally(() => {
+            // Navigate after camera is released
+            window.location.href = "{% url 'student-take-exam' exam.id %}";
+        });
     });
 </script>
 

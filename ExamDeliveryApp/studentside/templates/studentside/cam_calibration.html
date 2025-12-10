@@ -16,13 +16,23 @@
             
             <div class="card mb-4">
                 <div class="card-header bg-primary text-white">
-                    <h5>Camera Feed</h5>
+                    <!-- Camera feed title and a button that will load existing calibration data or reset calibration -->
+                    <button id="load-calibration-btn" class="btn btn-light btn-sm float-end">Load Calibration</button>
+                    <button id="reset-calibration-btn" class="btn btn-warning btn-sm float-end me-2">Reset Calibration</button>
+                    <h5> Camera Feed</h5>
                 </div>
                 <div class="card-body">
                     <img id="camera-feed" src="{% url 'video' %}" width="640" height="480" 
                          alt="Live Camera Feed" style="border: 5px solid red; border-radius: 8px;">
                     
                     <div class="mt-3">
+                        <div class="alert alert-info" role="alert">
+                            <strong>Note:</strong> Ensure your face is well-lit and clearly visible in the camera feed above.
+                        </div>
+                        <!-- class info if distance is good, and class warning if distance is not good -->
+                        <div id="distance-info" class="alert alert-info" role="alert">
+                            <strong>Face Distance: </strong><span id="face-distance"> </span>. Please maintain an appropriate distance from the camera for optimal tracking.
+                        </div>
                         <div class="alert alert-warning" role="alert">
                             <strong>Instructions:</strong> Press the <kbd>C</kbd> key to calibrate each point. 
                             The border will turn <span style="color: green; font-weight: bold;">GREEN</span> when calibration is successful.
@@ -127,7 +137,9 @@
     const gazeCircle = document.getElementById('gaze-circle');
     const calibrationPoint = document.getElementById('calibration-point');
     const startExamBtn = document.getElementById('start-exam-btn');
-
+    const loadCalibrationBtn = document.getElementById('load-calibration-btn');
+    const resetCalibrationBtn = document.getElementById('reset-calibration-btn');
+    const cameraFeed = document.getElementById('camera-feed');
 
     let calibrationStatusInterval;
     let currentStage;
@@ -238,6 +250,28 @@
             .catch(error => console.error('Error fetching eye midpoint:', error));
     }
 
+    // Fetch face distance every 200ms
+    function fetchFaceDistance(){
+        fetch("{% url 'get-face-distance' %}")
+            .then(response => response.json())
+            .then(data => {
+                console.log('Face distance (cm):', data.face_distance_cm);
+                document.getElementById('face-distance').textContent = data.face_distance_cm.toFixed(2) + ' cm';
+                const distanceInfo = document.getElementById('distance-info');
+                // Update distance info class based on distance
+                if (data.face_distance_cm >= 40 && data.face_distance_cm <= 60) {
+                    distanceInfo.classList.remove('alert-warning');
+                    distanceInfo.classList.add('alert-info');
+                } else {
+                    distanceInfo.classList.remove('alert-info');
+                    distanceInfo.classList.add('alert-warning');
+                }
+            })
+            .catch(error => console.error('Error fetching face distance:', error));
+    }
+
+    setInterval(fetchFaceDistance, 200);
+
     // Fetch initial calibration stage FIRST, then start everything else
     fetch("{% url 'get-calibration-stage' %}")
         .then(response => response.json())
@@ -322,10 +356,53 @@
     // Also handle visibility change (when tab is hidden/closed)
     document.addEventListener('visibilitychange', function() {
         if (document.visibilityState === 'hidden') {
-            // Page is being hidden/closed
-            navigator.sendBeacon("{% url 'release-camera' %}");
+            fetch("{% url 'release-camera' %}", {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}',
+                },
+                keepalive: true
+            }).catch(error => console.error('Error releasing camera:', error));
         }
     });
+
+    // Load existing calibration data
+    loadCalibrationBtn.addEventListener('click', function() {
+        fetch("{% url 'load-calibration-data' %}", {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}',
+            },
+        })
+        .then(response => response.json())
+        .then(data => {
+            console.log('Calibration loaded:', data);
+            showCalibrationPoint(data.currentStage);
+            updateProgressBar(data.currentStage);
+            currentStage = data.currentStage;
+            alert('Existing calibration data loaded successfully.');
+        })
+        .catch(error => console.error('Error loading calibration:', error));
+    });
+
+    // Reset calibration data
+    resetCalibrationBtn.addEventListener('click', function() {
+        fetch("{% url 'reset-calibration' %}", {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}',
+            },
+        })
+        .then(response => response.json())
+        .then(data => {
+            console.log('Calibration reset:', data);
+            showCalibrationPoint(-1);
+            updateProgressBar(-1);
+            alert('Calibration data has been reset.');
+        })
+        .catch(error => console.error('Error resetting calibration:', error));
+    });
+
 
     // Handle start exam button click
     startExamBtn.addEventListener('click', function() {
@@ -344,6 +421,7 @@
             window.location.href = "{% url 'student-take-exam' exam.id %}";
         });
     });
+
 </script>
 
 {% endblock %}

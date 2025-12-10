@@ -11,7 +11,7 @@ class GazeTrackerState:
         
         # Distance coefficients
         self.y_dist = [240, 132, 350, 560, 200]
-        self.cm_dist = [50, 90, 38, 20, 70]
+        self.cm_dist = [25, 50, 15, 20, 30]
         self.dist_coff = np.polyfit(self.y_dist, self.cm_dist, deg=2)
         
         # Face landmarks

@@ -5,8 +5,10 @@ from django.http import JsonResponse
 from home.models import Profile, StudentProfile, ActiveExamSessions
 from home.decorators import login_required_role
 
+
 camera_instance = None
 next_point = None
+
 
 # Create your views here.
 @login_required_role(allowed_roles=['Student', 'Admin'])
@@ -59,6 +61,7 @@ def get_screen_position(request):
 def gen(cam_capture):
     while True:
         frame = cam_capture.get_frame()
+        # You can include face_distance in the frame if needed, e.g., overlay text
         yield(b'--frame\r\n'
               b'Content-Type: image/jpeg\r\n\r\n' + frame + 
               b'\r\n\r\n')
@@ -88,7 +91,7 @@ def update_calibration(request):
     })
 
 
-@login_required_role(allowed_roles=['Student', 'Admin'])
+# Remove the decorator
 def release_camera(request):
     global camera_instance
     if camera_instance is not None:
@@ -120,8 +123,6 @@ def save_calibration(request):
         'calibration_data': calibration_data
     })
 
-
-
 @login_required_role(allowed_roles=['Student', 'Admin'])
 def load_calibration(request):
     global camera_instance
@@ -136,6 +137,18 @@ def load_calibration(request):
     return JsonResponse({
         'status': 'Calibration data loaded successfully.',
         'calibration_data': calibration_data
+    })
+
+@login_required_role(allowed_roles=['Student', 'Admin'])
+def get_face_distance(request):
+    global camera_instance
+    if camera_instance is None:
+        camera_instance = get_camera()
+    
+    face_distance_cm = camera_instance.get_face_distance()
+    
+    return JsonResponse({
+        'face_distance_cm': face_distance_cm
     })
 
 @login_required_role(allowed_roles=['Student', 'Admin'])

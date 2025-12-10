@@ -30,5 +30,6 @@ urlpatterns = [
     path('api/get_calibration_stage/', cam_views.get_calibration_stage, name='get-calibration-stage'),
     path('api/send_active_status/', cam_views.send_active_status, name='send-active-status'),
     path('api/reload_camera_with_calibration/', cam_views.reload_camera_with_calibration, name='reload-camera-with-calibration'),
+    path('api/get_face_distance/', cam_views.get_face_distance, name='get-face-distance'),
 ]
     

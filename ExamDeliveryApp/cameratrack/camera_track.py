@@ -91,6 +91,9 @@ class CameraTrack:
 
         # Weighted Screen Position
         self.weighted_screen_position = (self.SCREEN_WIDTH // 2, self.SCREEN_HEIGHT // 2)
+
+        # Face distance in cm
+        self.face_distance_cm = 0.0
         
     
     # Calculate bounding box around both eyesq
@@ -668,8 +671,10 @@ class CameraTrack:
                     
                     if distanceCM > (distance_threshold + 10):
                         distance_status = "FAR"
-                    else:
+                    elif distanceCM < (distance_threshold - 10):
                         distance_status = "GOOD"
+                    else:
+                        distance_status = "CLOSE"
 
                     if smoothed_height > up_threshold:
                         eye_vertical_gaze = "UP"
@@ -944,6 +949,7 @@ class CameraTrack:
                 self.distance_threshold = distance_threshold
                 self.combined_gaze = combined_gaze
                 self.iris_gaze_position = iris_gaze_position
+                self.face_distance_cm = distanceCM
 
             # ============================================ FINAL VARIABLE UPDATES =============================================== #
         
@@ -960,6 +966,9 @@ class CameraTrack:
 
     def get_screen_position(self):
         return self.weighted_screen_position
+    
+    def get_face_distance(self):
+        return self.face_distance_cm
        
 
 # if __name__ == "__main__":

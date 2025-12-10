@@ -149,6 +149,13 @@ def student_take_exam(request, exam_id):
         return HttpResponse("You have reached the maximum number of attempts for this exam.", status=400)
     
     else:
+        # Check if an active exam session already exists on the same exam id or other exams
+        try:
+            existing_active_session = ActiveExamSessions.objects.get(student=student_profile, is_active=True)
+            if existing_active_session.exam.id != exam.id:
+                return HttpResponse("You have an ongoing exam session. Please complete or submit it before starting a new exam.", status=400)
+        except ActiveExamSessions.DoesNotExist:
+            pass  # No existing active session, proceed
 
         # Get exam date and time limit
         exam_date = exam.exam_date
@@ -342,35 +349,6 @@ def violation_check(request, exam_id):
             return HttpResponse("No violation", status=200)
     return HttpResponse("Invalid request", status=400)  
 
-
-@login_required_role(allowed_roles=['Student', 'Admin'])
-def teacher_start_exam(request, exam_id):
-
-    user_id = request.user.id
-    exam_id = request.GET.get('exam_id')  # Replace with actual exam_id from URL parameter
-    
-    # Logic to start the exam would go here
-    if request.method == 'POST':
-        # Process submitted event log
-        event_log = request.POST.get('event_log', '[]')
-        
-    else:
-        exam = Exams.objects.get(id=exam_id)
-        # Get exam questions in a list
-        questions = exam.questions
-        return render(request, 'studentside/(debug)test_exam.html', {'exam': exam, 'questions': questions})
-    
-    # For debugging purposes
-    if request.method == "GET":
-        # Check if user has existing violations for this exam
-        if user_id in exam_violations and exam_id in exam_violations.get(user_id, {}):
-        # User has violations, redirect to dashboard
-            from django.shortcuts import redirect
-            return redirect('teacher-dashboard')
-        if request.user.id in exam_violations:
-            return HttpResponse("Violation logged", status=200)
-        else:
-            return render(request, 'teacherside/(debug)test_exam.html')
 
 @login_required_role(allowed_roles=['Student', 'Admin'])
 def student_active_exam(request, exam_id):

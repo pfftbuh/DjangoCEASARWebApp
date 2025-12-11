@@ -1,3 +1,4 @@
+from datetime import time
 import cv2
 import numpy as np
 import mediapipe as mp
@@ -1055,43 +1056,53 @@ class CameraTrack:
        
 
 if __name__ == "__main__":
-    camera_track = CameraTrack()
+    camera_track = None
 
-    # Load existing calibration from json
-    try:
-        with open("calibration_data.json", "r") as f:
-            calibration_data = json.load(f)
-            camera_track.load_calibration(calibration_data)
-    except FileNotFoundError:
-        print("No calibration data found. Starting fresh.")
+    def get_camera_track():
+        global camera_track
+        if camera_track is None:
+            camera_track = CameraTrack()
+        return camera_track
 
-    try:
-        while True:
-            frame = camera_track.get_frame()
-            # Convert byte data back to image for display
-            nparr = np.frombuffer(frame, np.uint8)
-            frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-            cv2.imshow('Camera Feed', frame)
-            
-            screen_frame = np.zeros((1080, 1920, 3), dtype=np.uint8)
-            screen_pos = camera_track.get_screen_position()
-            gaze_x = int(screen_pos[0] * 1920)
-            gaze_y = int(screen_pos[1] * 1080)
-            # 80px circle outline for weighted gaze 
-            cv2.circle(screen_frame, (gaze_x, gaze_y), 100, (0, 255, 255), 3)
-                
-            # Peripheral circles for reference
-            cv2.circle(screen_frame, (gaze_x, gaze_y), 200, (255, 255, 255), 2)
+    def load_calibration():
+        # Load existing calibration from json
+        global camera_track
+        if camera_track is None:
+            camera_track = get_camera_track()
+            try:
+                with open("calibration_data.json", "r") as f:
+                    calibration_data = json.load(f)
+                    camera_track.load_calibration(calibration_data)
+            except FileNotFoundError:
+                print("No calibration data found. Starting fresh.")
 
-            cv2.imshow('Weighted Gaze Position', screen_frame)
-            
-            if cv2.waitKey(1) & 0xFF == ord('c'):
-                camera_track.update_calibration_stage(camera_track.calibration_stage + 1)
-            if cv2.waitKey(1) & 0xFF == ord('s'):
-                camera_track.save_calibration()
-            if cv2.waitKey(1) & 0xFF == ord('l'):
-                camera_track.load_calibration()
-            if cv2.waitKey(1) & 0xFF == ord('q'):
-                break
-    finally:
-        camera_track.release()
+    def save_calibration():
+        # Save current calibration to json
+        global camera_track
+        if camera_track is not None:
+            calibration_data = camera_track.save_calibration()
+            with open("calibration_data.json", "w") as f:
+                json.dump(calibration_data, f)
+            print("Calibration data saved.")
+    
+    def reset_calibration():
+        # Reset calibration data
+        global camera_track
+        if camera_track is not None:
+            camera_track.reset_calibration()
+            print("Calibration data reset.")
+    
+    def release_camera():
+        global camera_track
+        if camera_track is not None:
+            camera_track.release()
+            print("Camera released.")
+
+    while True:
+        cam_track = get_camera_track()
+        frame = cam_track.get_frame()
+        cv2.imshow("Gaze Tracker", cv2.imdecode(np.frombuffer(frame, np.uint8), cv2.IMREAD_COLOR))
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            break
+        
+    

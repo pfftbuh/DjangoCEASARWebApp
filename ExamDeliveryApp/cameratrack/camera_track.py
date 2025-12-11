@@ -1,3 +1,4 @@
+from time import time
 import cv2
 import numpy as np
 import mediapipe as mp
@@ -6,7 +7,6 @@ from collections import deque
 import json
 import os
 import keyboard
-import time
 
 try:
     from .camera_track_constants import GazeTrackerState
@@ -26,10 +26,10 @@ class CameraTrack:
         if not self.cam.isOpened():
             try:
                 self.cam.open()
-                time.sleep(2)  # Wait for the camera to initialize
+                time.sleep(3)  # Allow camera to warm up
             except Exception as e:
                 print(f"Error opening camera: {e}")
-
+            
         # Set camera properties for better reliability
         
         self.cam.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
@@ -97,9 +97,6 @@ class CameraTrack:
 
         # Weighted Screen Position
         self.weighted_screen_position = (self.SCREEN_WIDTH // 2, self.SCREEN_HEIGHT // 2)
-
-        # Face distance in cm
-        self.face_distance_cm = 0.0
         
     
     # Calculate bounding box around both eyesq
@@ -153,10 +150,10 @@ class CameraTrack:
         
         return calibration_data
         
-    def load_calibration(self,calibration_data):
-        """Load calibration data from JSON file"""
+    def load_calibration(self, calibration_data):
+        """Load calibration data and properly reinitialize tracking state"""
         if calibration_data:
-            
+            # Load all calibration values
             self.calibration_height_up = calibration_data['calibration_height_up']
             self.calibration_height_center = calibration_data['calibration_height_center']
             self.calibration_height_down = calibration_data['calibration_height_down']
@@ -176,9 +173,41 @@ class CameraTrack:
             self.is_left_calibrated = calibration_data['is_left_calibrated']
             self.is_h_center_calibrated = calibration_data['is_h_center_calibrated']
             self.is_right_calibrated = calibration_data['is_right_calibrated']
+
+            # Clear all calibration sample deques to prevent interference
+            self.calibration_distance_samples.clear()
+            self.calibration_left_samples.clear()
+            self.calibration_h_center_samples.clear()
+            self.calibration_right_samples.clear()
+            self.calibration_up_samples.clear()
+            self.calibration_center_samples.clear()
+            self.calibration_down_samples.clear()
+            
+            # Clear history deques for clean start
+            self.height_history.clear()
+            self.horizontal_history.clear()
+            self.face_gaze_position_history.clear()
+            self.iris_gaze_position_history.clear()
+            self.ray_origins.clear()
+            self.ray_directions.clear()
+            
+            # CRITICAL: Pre-populate height_history and horizontal_history
+            # This ensures the iris position algorithm has stable baseline values
+            for _ in range(5):  # Fill the deque (maxlen=5)
+                self.height_history.append(self.calibration_height_center)
+                self.horizontal_history.append(self.calibration_horizontal_center)
             
             # Set calibration stage to tracking mode
             self.calibration_stage = 6
+            
+            # Reset gaze position to center of screen
+            self.iris_gaze_position = (self.SCREEN_WIDTH // 2, self.SCREEN_HEIGHT // 2)
+            self.weighted_screen_position = (0.4, 0.5)  # Normalized center
+            
+            print(f"Calibration loaded successfully - Stage: {self.calibration_stage}")
+            print(f"Thresholds - Up: {self.up_threshold:.2f}, Down: {self.down_threshold:.2f}")
+            print(f"Thresholds - Left: {self.left_threshold:.2f}, Right: {self.right_threshold:.2f}")
+            print(f"Head offsets - Yaw: {self.calibration_offset_yaw:.2f}, Pitch: {self.calibration_offset_pitch:.2f}")
         
             
 
@@ -188,9 +217,8 @@ class CameraTrack:
             stage = 6
         elif stage < -1:
             stage = -1
-        
-        self.calibration_stage = stage
-        print(f"DEBUG camera_track.py: Calibration stage updated to {stage}")  # Add debug log
+        else:
+            self.calibration_stage = stage
 
     def reset_calibration(self):
         """Reset all calibration values to default"""
@@ -678,10 +706,8 @@ class CameraTrack:
                     
                     if distanceCM > (distance_threshold + 10):
                         distance_status = "FAR"
-                    elif distanceCM < (distance_threshold - 10):
-                        distance_status = "GOOD"
                     else:
-                        distance_status = "CLOSE"
+                        distance_status = "GOOD"
 
                     if smoothed_height > up_threshold:
                         eye_vertical_gaze = "UP"
@@ -746,21 +772,30 @@ class CameraTrack:
                     normalize_eye_horizontal_margin = eye_horizontal_margin / (right_threshold - left_threshold) if (right_threshold - left_threshold) > 0 else 0
                     normalize_face_vertical_margin = face_vertical_margin / third_h if third_h > 0 else 0
                     normalize_face_horizontal_margin = face_horizontal_margin / third_w if third_w > 0 else 0
-                    # Combine eye-based and face-based gaze directions
-                    if normalize_eye_horizontal_margin - normalize_face_horizontal_margin > 0.1:
+                    # Weighted voting approach - only override CENTER if margin is significant
+                    V_CONFIDENCE_THRESHOLD = 1.25 # Minimum margin needed to be considered confident
+                    H_CONFIDENCE_THRESHOLD = 0.4  # Minimum margin needed to be considered confident
+
+                    # Horizontal gaze combination
+                    if eye_horizontal_gaze == "CENTER" and face_horizontal_gaze == "CENTER":
+                        combined_horizontal_gaze = "CENTER"
+                    elif eye_horizontal_gaze != "CENTER" and normalize_eye_horizontal_margin > H_CONFIDENCE_THRESHOLD:
                         combined_horizontal_gaze = eye_horizontal_gaze
-                    elif normalize_face_horizontal_margin - normalize_eye_horizontal_margin > 0.1:
+                    elif face_horizontal_gaze != "CENTER" and normalize_face_horizontal_margin > H_CONFIDENCE_THRESHOLD:
                         combined_horizontal_gaze = face_horizontal_gaze
                     else:
                         combined_horizontal_gaze = "CENTER"
-                    
-                    if normalize_eye_vertical_margin - normalize_face_vertical_margin > 0.1:
+
+                    # Vertical gaze combination  
+                    if eye_vertical_gaze == "CENTER" and face_vertical_gaze == "CENTER":
+                        combined_vertical_gaze = "CENTER"
+                    elif eye_vertical_gaze != "CENTER" and normalize_eye_vertical_margin > V_CONFIDENCE_THRESHOLD:
                         combined_vertical_gaze = eye_vertical_gaze
-                    elif normalize_face_vertical_margin - normalize_eye_vertical_margin > 0.1:
+                    elif face_vertical_gaze != "CENTER" and normalize_face_vertical_margin > V_CONFIDENCE_THRESHOLD:
                         combined_vertical_gaze = face_vertical_gaze
                     else:
                         combined_vertical_gaze = "CENTER"
-                    
+
                     combined_gaze = f"{combined_vertical_gaze} {combined_horizontal_gaze}".strip()
 
 
@@ -776,7 +811,7 @@ class CameraTrack:
                                       (rect_dims[2], rect_dims[3]), color, -1)
 
                     # Calculate dynamic thirds based on screen dimensions
-                    spacing = 50 # Space between segments
+                    spacing = 100 # Space between segments
                     third_w = self.SCREEN_WIDTH // 3
                     two_thirds_w = 2 * third_w
                     third_h = self.SCREEN_HEIGHT // 3
@@ -922,8 +957,8 @@ class CameraTrack:
                 # Gaze position display
                 if calibration_stage == 6:
 
-                    face_weight = 0.45 # 45% face-based tracking
-                    eye_weight = 0.55 # 55% eye-based tracking
+                    face_weight = 0.50 # 50% face-based tracking
+                    eye_weight = 0.50 # 50% eye-based tracking
                     
                     weighted_gaze_x = int((face_gaze_position[0] * face_weight + iris_gaze_position[0] * eye_weight))
                     weighted_gaze_y = int((face_gaze_position[1] * face_weight + iris_gaze_position[1] * eye_weight))
@@ -956,13 +991,28 @@ class CameraTrack:
                 self.distance_threshold = distance_threshold
                 self.combined_gaze = combined_gaze
                 self.iris_gaze_position = iris_gaze_position
-                self.face_distance_cm = distanceCM
 
             # ============================================ FINAL VARIABLE UPDATES =============================================== #
         
-        # show combined gaze on screen frame
+        # show combined gaze, eye gaze position, and face gaze position on frame
         if calibration_stage == 6:
-            cv2.putText(frame, f"Gaze: {combined_gaze}", (50, 100), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 255, 255), 3)
+            if landmarks_points:
+                cv2.putText(frame, f"Gaze: {combined_gaze}", (50, 100), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 255, 255), 3)
+                cv2.putText(frame, f"Iris Gaze Pos: {iris_gaze_position}", (50, 150), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 0), 2)
+                cv2.putText(frame, f"Face Gaze Pos: {face_gaze_position}", (50, 200), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255), 2)
+            
+            # Debug output
+                cv2.putText(frame, f"Eye H: {eye_horizontal_gaze} ({normalize_eye_horizontal_margin:.2f})", 
+                            (50, 250), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 0, 255), 2)
+                cv2.putText(frame, f"Face H: {face_horizontal_gaze} ({normalize_face_horizontal_margin:.2f})", 
+                            (50, 280), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 0, 255), 2)
+                cv2.putText(frame, f"Eye V: {eye_vertical_gaze} ({normalize_eye_vertical_margin:.2f})", 
+                            (50, 310), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 0, 255), 2)
+                cv2.putText(frame, f"Face V: {face_vertical_gaze} ({normalize_face_vertical_margin:.2f})", 
+                            (50, 340), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 0, 255), 2)
+            
+            elif landmarks_points == []:
+                cv2.putText(frame, "No face detected", (50, 100), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 0, 255), 3)
 
         ret, jpg = cv2.imencode('.jpg', frame)
         return jpg.tobytes()
@@ -973,9 +1023,6 @@ class CameraTrack:
 
     def get_screen_position(self):
         return self.weighted_screen_position
-    
-    def get_face_distance(self):
-        return self.face_distance_cm
        
 
 # if __name__ == "__main__":

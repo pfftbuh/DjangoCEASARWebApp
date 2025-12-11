@@ -15,10 +15,8 @@ def student_cam_calibration(request, exam_id):
     if not case:
         return HttpResponse("You have reached the maximum number of attempts for this exam.", status=400)
     
-    # Reset calibration when entering calibration page
-    from cameratrack.views import get_camera
-    cam = get_camera()
-    cam.reset_calibration()
+    # REMOVED: Don't release camera here - let the frontend handle it
+    # The JavaScript will initialize the camera properly
     
     return render(request, 'studentside/cam_calibration.html', {'exam': exam})
 
